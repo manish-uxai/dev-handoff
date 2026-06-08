@@ -18,17 +18,33 @@ See [`dev-handoff/SKILL.md`](dev-handoff/SKILL.md) for the full specification.
 
 ## Install
 
-One command — works with Claude Code, Cursor, Codex, GitHub Copilot, and [15+ agents](https://skills.sh/):
-
 ```bash
 npx skills add Manish-UXUI/dev-handoff -g -y
 ```
 
-Project-only install (omit `-g`):
+Project-only (PromptScript, or team-shared in repo):
 
 ```bash
 npx skills add Manish-UXUI/dev-handoff -y
 ```
+
+### PromptScript / "Failed to install 1" warning
+
+If you see:
+
+```text
+✗ dev-handoff → PromptScript: PromptScript does not support global skill installation
+```
+
+**The skill still installed** to `~/.agents/skills/dev-handoff` — Cursor, Copilot, Claude Code, and Codex all read that path. Safe to ignore.
+
+To install globally **without** the warning, target the universal agent path:
+
+```bash
+npx skills add Manish-UXUI/dev-handoff -g -y -a universal
+```
+
+[PromptScript](https://getpromptscript.dev/v1.11/guides/npx-skills/) is project-only — use the `-y` command (no `-g`) inside a PromptScript project.
 
 ## Manual install by platform
 
