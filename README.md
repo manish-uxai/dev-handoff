@@ -1,20 +1,34 @@
 # Dev-Handoff
 
-Universal [Agent Skill](https://agentskills.io) for auditing and refactoring MVP prototypes ("vibecodes") into production-ready, enterprise-grade frontend codebases.
+Universal [Agent Skill](https://agentskills.io) that transforms messy vibecoded prototypes into production-ready, enterprise-grade frontend codebases — ready for backend teams to plug in and ship.
 
-Works across **Claude Code**, **OpenAI Codex**, **Cursor**, **GitHub Copilot**, and any other agent that supports the open `SKILL.md` format.
+Works across **Claude Code**, **OpenAI Codex**, **Cursor**, **GitHub Copilot**, and any agent supporting the open `SKILL.md` format.
+
+## The Problem
+
+Designers and product teams use vibecoding tools (Bolt, v0, Lovable, Replit, Claude Artifacts) to prototype working UIs fast. The output *looks* right but the code is unmaintainable: god-components, inline mock data, no types, no structure. Developers can't use it.
+
+**Dev-Handoff bridges that gap.** It refactors vibecoded prototypes into clean, typed, well-structured frontend code with clearly marked backend integration points — so devs receive it and just swap stubs for real APIs.
 
 ## What it does
 
-The **15-Dimension Handoff Framework** enforces:
+The **16-Dimension Handoff Framework** enforces:
 
-- Component architecture and domain isolation
-- Extracted mock/seed data and canonical `domain.ts` types
-- Typed `api.ts` contract stubs
-- Enterprise state management, RBAC, and destructive-action guards
-- CSS token compliance, routing, memoization, a11y, strict TypeScript, and error boundaries
+- Component architecture, data extraction, and canonical domain types
+- Typed `api.ts` stubs with `// @backend` markers and generated `BACKEND_CONTRACT.md`
+- State management, RBAC, routing, memoization, a11y
+- CSS token compliance, destructive-action guards, error boundaries
+- Dependency hygiene, file hygiene, and visual fidelity preservation
 
 See [`dev-handoff/SKILL.md`](dev-handoff/SKILL.md) for the full specification.
+
+## Execution Modes
+
+| Mode | Command | What it does |
+|------|---------|--------------|
+| **Audit** | `/dev-handoff audit` | Report violations without changing code |
+| **Refactor** | `/dev-handoff refactor` | Full 16-dimension pass + BACKEND_CONTRACT.md |
+| **Quick** | `/dev-handoff quick` | Structure + types + stubs only (fastest handoff) |
 
 ## Install
 
@@ -38,17 +52,15 @@ If you see:
 
 **The skill still installed** to `~/.agents/skills/dev-handoff` — Cursor, Copilot, Claude Code, and Codex all read that path. Safe to ignore.
 
-To install globally **without** the warning, target the universal agent path:
+To install globally **without** the warning:
 
 ```bash
 npx skills add Manish-UXUI/dev-handoff -g -y -a universal
 ```
 
-[PromptScript](https://getpromptscript.dev/v1.11/guides/npx-skills/) is project-only — use the `-y` command (no `-g`) inside a PromptScript project.
-
 ## Manual install by platform
 
-All platforms read the same `dev-handoff/SKILL.md`. Copy the `dev-handoff/` folder to the path your agent expects.
+Copy the `dev-handoff/` folder to the path your agent expects:
 
 | Agent | Personal (global) | Project (repo) |
 |-------|-------------------|----------------|
@@ -62,26 +74,25 @@ All platforms read the same `dev-handoff/SKILL.md`. Copy the `dev-handoff/` fold
 
 ## Usage
 
-The skill activates automatically when you ask for handoff-related work, or invoke it explicitly:
+The skill activates automatically when you ask for handoff-related work, or invoke explicitly:
 
-| Agent | Example invocation |
-|-------|-------------------|
+| Agent | Example |
+|-------|---------|
 | Claude Code | `/dev-handoff audit src/pages/Dashboard.tsx` |
-| Cursor | "Use the dev-handoff skill to audit this prototype" |
-| Codex | `$dev-handoff refactor src/App.tsx for backend handoff` |
-| Copilot (VS Code) | "Audit this file against the dev-handoff 15-dimension framework" |
+| Cursor | "Use dev-handoff to refactor this prototype for backend handoff" |
+| Codex | `$dev-handoff quick src/App.tsx` |
+| Copilot (VS Code) | "Audit this vibecoded prototype against the 16-dimension framework" |
 
 ### Example prompts
 
 ```
-Audit this React prototype against the 15-dimension handoff framework.
-List violations before refactoring.
+Audit this React prototype against the 16-dimension handoff framework.
 
-Refactor src/App.tsx for backend handoff: extract mocks to /src/data/,
-add domain.ts and api.ts stubs, and replace conditional routing with react-router.
+Refactor this vibecoded app for backend handoff: extract mocks, add domain.ts
+and api.ts with @backend annotations, generate BACKEND_CONTRACT.md.
 
-Prepare this vibecode for enterprise handoff. Enforce RBAC, ConfirmDialog
-on deletes, CSS tokens, and error boundaries.
+Quick clean this prototype — structure, types, and stubs only.
+I need devs to start integrating by tomorrow.
 ```
 
 ## Repository structure
@@ -91,9 +102,10 @@ Dev-Handoff/
 ├── README.md
 ├── LICENSE
 └── dev-handoff/
-    ├── SKILL.md                      # Required — agent instructions
+    ├── SKILL.md                               # Agent instructions (16 dimensions)
     └── references/
-        └── audit-checklist.md        # Optional — full-repo audit checklist
+        ├── audit-checklist.md                 # Full-repo audit checklist + grep patterns
+        └── backend-contract-template.md       # Template for generated handoff doc
 ```
 
 ## Compatibility
@@ -102,7 +114,7 @@ Built to the [Agent Skills open standard](https://agentskills.io):
 
 - YAML frontmatter (`name`, `description`) for agent discovery
 - Markdown body for instructions
-- Optional `references/` for progressive disclosure
+- `references/` for progressive disclosure
 
 Validated against: Claude Code, Cursor, Codex CLI, GitHub Copilot (VS Code / Visual Studio).
 
