@@ -16,18 +16,18 @@ The **15-Dimension Handoff Framework** enforces:
 
 See [`dev-handoff/SKILL.md`](dev-handoff/SKILL.md) for the full specification.
 
-## Install (recommended)
+## Install
 
-Use the [Skills CLI](https://skills.sh/) — one command, all supported agents:
+One command — works with Claude Code, Cursor, Codex, GitHub Copilot, and [15+ agents](https://skills.sh/):
 
 ```bash
-npx skills add Manish-UXUI/dev-handoff@dev-handoff -g -y
+npx skills add Manish-UXUI/dev-handoff -g -y
 ```
 
-Install into the current project only (omit `-g`):
+Project-only install (omit `-g`):
 
 ```bash
-npx skills add Manish-UXUI/dev-handoff@dev-handoff -y
+npx skills add Manish-UXUI/dev-handoff -y
 ```
 
 ## Manual install by platform
