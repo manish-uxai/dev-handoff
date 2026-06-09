@@ -5,7 +5,7 @@ license: MIT
 compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Supports React and Next.js projects. Other stacks trigger guided redirection.
 metadata:
   author: vibe-to-prod
-  version: "3.2.0"
+  version: "3.3.0"
   framework: 18-dimension-handoff
 ---
 
@@ -85,6 +85,8 @@ Do not proceed with the audit. Explain clearly:
 
 Read the user's messages for cues. If they use terms like "component", "props", or "state" correctly, you can be more technical. If they say "my app" or "my design", stay plain.
 
+**Mandatory language enforcement:** Before writing ANY audit finding, violation, or recommendation to a non-technical user, rewrite it using the translation table above. If the user has not used developer jargon in their messages, every finding in the Issue and Recommended Fix sections must be in plain language. Reserve file paths, line numbers, and grep output for the Evidence column only. Never output raw dimension numbers or framework jargon in prose unless the user is clearly technical.
+
 ---
 
 # Core Constraints
@@ -150,7 +152,31 @@ When the developer connects real APIs, they change only the function body inside
 - Isolate stateful logic from presentational components. Enforce one domain context per provider.
 - Break massive "god-components" (400+ lines) into focused, presentational child modules.
 - **DOM Hierarchy Guard:** Preserve the exact DOM layout hierarchy when splitting components. Do not introduce redundant wrapper elements or alter CSS display properties (`flex`, `grid`) of parent-child relationships — this instantly breaks style containment and positioning.
-- **Reusability pass (separate audit step):** After evaluating the component split, independently scan the entire codebase for duplicated UI patterns — the same button, card, badge, input, or layout block rebuilt with slight variations across files. Consolidate into shared primitives under `components/ui/`. One component per pattern. In audit mode, list every duplicated pattern found with file locations. This is not optional — it is half of dimension 1.
+
+### 1b. Component Reusability Pass (separate dimension — never merge with 1)
+
+This is a **mandatory separate audit step**. Do not fold reusability findings into dimension 1. Report dimension 1 and 1b as distinct rows in every audit.
+
+**Detection methods (run all that apply):**
+
+1. **Duplicate export names** — same component name exported from multiple files:
+   ```bash
+   rg "^export (default )?(function|const) \w+" src/components src/pages --glob '*.{tsx,jsx}' -o | sort | uniq -d
+   ```
+2. **Similar file names** — `Button.tsx`, `CustomButton.tsx`, `PrimaryButton.tsx` in different folders:
+   ```bash
+   find src -iname '*button*' -o -iname '*card*' -o -iname '*badge*' | sort
+   ```
+3. **Repeated JSX prop shapes** — same prop interface rebuilt (e.g., `variant`, `size`, `onClick`) across files without a shared import:
+   ```bash
+   rg "variant.*size|size.*variant" src/components --glob '*.{tsx,jsx}' -l
+   ```
+4. **className-only duplication** — long identical class strings (weak signal; use with methods 1–3):
+   ```bash
+   rg -o 'className="[^"]{60,}"' src --glob '*.{tsx,jsx}' | sort | uniq -d
+   ```
+
+In audit mode: list every duplicated pattern with **all file paths**, then state what shared primitive in `components/ui/` would replace them. In refactor mode: consolidate before marking 1b passed.
 
 ### 2. Clean Data Extraction
 
@@ -185,6 +211,15 @@ Create `domain.js` with JSDoc type definitions for every entity. Not as strict a
 ```
 
 In both cases: one file, one source of truth, no duplicated or conflicting type definitions across the codebase.
+
+**If React + JavaScript — JSDoc quality (not just presence):**
+Do not pass dimension 3 because `domain.js` exists. Evaluate quality:
+
+- Every entity the UI renders has a `@typedef` with all properties used in components
+- Property types match actual runtime usage (no `@property {string} id` when code uses `id` as number)
+- No duplicate `@typedef` names across files
+- `@param` and `@returns` on every function in `api.js` matching stub signatures
+- Flag incomplete JSDoc as a dimension 3 violation with specific missing or wrong properties cited
 
 ### 4. API Contract Stubs (`api.ts` / `api.js`)
 
@@ -244,17 +279,38 @@ The structure, annotations, and envelope shape are identical. The only differenc
 
 ### 8. Component Library Compliance
 
-- **Actively scan for reinvented UI primitives** (dropdowns, modals, tooltips, tabs, popovers, date pickers, checkboxes, radios, select menus). Do not passively check whether existing ones are compliant — search for components that should be replaced but haven't been. Run the grep pattern from audit-checklist.md. A god-component almost certainly contains inline primitives.
+- **Actively scan for reinvented UI primitives** (dropdowns, modals, tooltips, tabs, popovers, date pickers, checkboxes, radios, select menus). Do not passively check whether existing ones are compliant — search for components that should be replaced but haven't been. Run the grep patterns from audit-checklist.md. A god-component almost certainly contains inline primitives.
 - Replace reinvented primitives with **shadcn/ui** or **Radix UI** equivalents, preserving the designer's exact visual styling.
 - Genuine custom components (novel interactions, product-specific visualizations) are preserved and hardened — not replaced.
 - Flag any replaced component in `BACKEND_CONTRACT.md` so the developer knows which primitives have clean swap surfaces.
-- In audit mode, produce two lists: (a) reinvented primitives found with file locations, and (b) genuine custom components that should be preserved. If neither list is present, this dimension is incomplete.
 - **Do not auto-pass this dimension.** If no scan was performed, mark it as unevaluated, not passing.
+
+**Mandatory audit output — two lists (non-negotiable):**
+
+Every audit and refactor report must include both lists below. Missing either list = dimension 8 incomplete.
+
+```markdown
+### Dimension 8 — Reinvented Primitives (replace with shadcn/Radix)
+| Component | File:Line | Suggested Replacement |
+|-----------|-----------|----------------------|
+| CustomDropdown | `src/components/Header.tsx:42` | shadcn `<Select />` |
+
+### Dimension 8 — Genuine Custom (preserve and harden)
+| Component | File:Line | Why Custom |
+|-----------|-----------|------------|
+| TimelineDragReorder | `src/components/Timeline.tsx:1` | Product-specific drag interaction |
+```
+
+If a list is empty, write explicitly: `None found after active scan.` Do not omit the section.
 
 ### 9. CSS Token & Design System Compliance
 
-- Map all colors and spacing to semantic CSS variables (e.g., `--color-status-danger`, `--spacing-container`). No hardcoded hex codes remaining after refactor.
-- **Defensive Tailwind Snapping:** Scan for Tailwind arbitrary bracket values (e.g., `p-[17px]`, `bg-[#f3f4f6]`). Snap to nearest standard Tailwind scale only if the visual shift is less than `1px`. Otherwise extract to a semantic CSS variable.
+- Map **colors, spacing, sizing, and typography** to semantic CSS variables (e.g., `--color-status-danger`, `--spacing-container`, `--font-size-body`, `--size-icon-sm`). No hardcoded design values remaining after refactor.
+- **Color violations:** hardcoded hex, `rgb()`, `hsl()`, Tailwind arbitrary colors (`bg-[#f3f4f6]`)
+- **Spacing violations:** raw pixel padding/margin/gap in inline styles (`padding: 17px`), or Tailwind arbitrary spacing (`p-[17px]`, `m-[13px]`, `gap-[22px]`)
+- **Sizing violations:** raw pixel width/height in inline styles or arbitrary Tailwind (`w-[243px]`, `h-[312px]`)
+- **Typography violations:** hardcoded `fontSize`, `lineHeight`, `letterSpacing`, `fontWeight` in inline styles or arbitrary Tailwind (`text-[13px]`, `leading-[1.37]`)
+- **Defensive Tailwind Snapping:** Scan for Tailwind arbitrary bracket values. Snap to nearest standard Tailwind scale only if the visual shift is less than `1px`. Otherwise extract to a semantic CSS variable.
 
 ### 10. Destructive Action Safety
 
@@ -361,9 +417,23 @@ The `api.ts` stub pattern still applies for frontend data consumption. However, 
 | **Contract-to-Runtime Drift** | Align `domain.ts`/`domain.js` definitions with actual UI runtime usages. |
 | **Single 1000+ line components** | Split into container + presentational children while guarding the DOM tree. |
 | **Buggy vibe-coded interactions** | Flickering hovers, dropping animations. Flag to developer rather than silently preserve. |
-| **"Mostly" CSS variables** | Hardcoded colors or pixel metrics hiding in Tailwind classes. Swap with design tokens. |
+| **"Mostly" CSS variables** | Hardcoded colors, spacing, sizing, or typography in Tailwind classes or inline styles. Swap with design tokens. |
 | **Cascading state chains** | 5+ independent `useState` hooks. Move to context or a consolidated reducer. |
 | **Raw, multi-line SVGs in JSX** | Extract to standalone icon files or `lucide-react`. |
+
+---
+
+# Severity Scale
+
+Every violation must include a severity and a one-line justification. Use this scale consistently:
+
+| Severity | When to use | Examples |
+|----------|-------------|----------|
+| **High** | Blocks backend handoff or will cause dev rework/integration failure | Direct `fetch()` in components (dim 4); no `domain.ts`/`domain.js`; god-component 800+ lines; missing `api.ts` stubs; conditional routing instead of router |
+| **Medium** | Handoff possible but dev friction, maintenance risk, or partial contract drift | Duplicated button variants (1b); hardcoded spacing/typography (9); missing `@backend` on one stub; 5+ `useState` in one file; reinvented modal without Radix |
+| **Low** | Polish, hygiene, or non-blocking quality gaps | Missing `data-testid` on secondary elements; unused imports; console.log; arbitrary Tailwind that could snap to token with <1px shift |
+
+When assigning severity, state **why** in the Issue column: e.g., "High — developer cannot swap API layer without touching 12 components."
 
 ---
 
@@ -377,17 +447,25 @@ Output format must strictly follow [references/audit-checklist.md](references/au
 
 **Audit rules:**
 
+0. **Plain language first.** Apply mandatory language enforcement from Step 0 before outputting the report.
+
 1. **Lead with stack detection.** Identify the stack first (React/TS, React/JS, Next.js, or unsupported). If unsupported, stop and follow the redirection response in Step 0. If JavaScript, proceed with all dimensions — do not flag as a blocker. If Next.js, apply the dimension overrides.
 
-2. **Show evidence, not just conclusions.** For every dimension marked failing, include the specific file path, line reference, or grep output that proves the violation. Citing the same file twice as two different sources is not evidence — it's padding. Each citation must point to a distinct location or finding.
+2. **Show evidence, not just conclusions.** For every dimension marked failing, include the specific file path, **line number**, or grep output that proves the violation. **Ban duplicate citations:** citing the same file twice as two different evidence entries is padding. Each citation must be a distinct `path:line` or distinct grep match. If two violations share a file, cite different line numbers and explain why each is a separate finding.
 
 3. **Run the grep patterns from audit-checklist.md.** These are required evidence-gathering steps, not optional. Include the output (or a summary of the output) in the audit report. If the environment doesn't support shell execution, run equivalent regex searches and show results.
 
-4. **Flag interactions from code even without a browser.** You cannot test animations visually in audit mode, but you can scan for: Framer Motion configs with extreme spring tensions, CSS transitions with 0ms durations, hover handlers that toggle state without debounce, animation components that depend on frequently-changing state values. List anything suspicious in a "Flagged Interactions" section with file locations and your reasoning. If nothing is found, state that explicitly — do not skip the section.
+4. **Flag interactions from code — distinct line references required.** You cannot test animations visually in audit mode. Scan for: Framer Motion configs with extreme spring tensions, CSS transitions with 0ms durations, hover handlers that toggle state without debounce, animation components that depend on frequently-changing state values. Each flagged item must include **`file:line`**, the code pattern found, and your reasoning. Never cite the same `file:line` twice without explaining why it represents two separate issues. If nothing is found, write: `None found after code scan.` — do not skip the section.
 
-5. **Dimension 4 is all-or-nothing.** If any component — including maps, charts, or third-party visual integrations — fetches data directly instead of through `api.ts`, dimension 4 fails. Do not mark it as partially passing.
+5. **Design fidelity in audit mode — no fake "AT RISK".** Do not claim layout or animation fidelity is "AT RISK" without visual testing — you have no browser. Instead report: **"Not evaluated in audit mode (code-only scan). Refactor mode preserves design intent per Core Constraints."** Only flag concrete code-level risks (e.g., DOM wrapper changes proposed, animation config extremes).
 
-6. **Dimension 8 requires active scanning.** Do not auto-pass component library compliance. Search for reinvented primitives, produce the two lists (reinvented vs genuine custom), or mark the dimension as unevaluated.
+6. **Dimension 1 and 1b are separate rows.** Never merge reusability into dimension 1. Always report 1b with its own pass/fail and evidence.
+
+7. **Dimension 4 is all-or-nothing.** If any component — including maps, charts, or third-party visual integrations — fetches data directly instead of through `api.ts`/`api.js`, dimension 4 fails. Do not mark it as partially passing.
+
+8. **Dimension 8 requires both lists.** Reinvented primitives list AND genuine custom list — see mandatory format in dimension 8. Missing either = incomplete.
+
+9. **Apply severity scale.** Every violation row includes High/Medium/Low with justification.
 
 ```
 /vibe-to-prod audit [file or directory]
@@ -403,7 +481,7 @@ Execute a full 18-dimension pass over the targeted module. Refactor cleanly whil
 
 ## Quick mode
 
-Fast-track structure + types + stubs only. Applies dimensions: 1, 2, 3, 4, 7, 17, 18.
+Fast-track structure + types + stubs only. Applies dimensions: 1, 1b, 2, 3, 4, 7, 17, 18.
 
 ```
 /vibe-to-prod quick [file or directory]

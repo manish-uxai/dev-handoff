@@ -9,177 +9,161 @@ When running `/vibe-to-prod audit`, output must strictly follow:
 ```markdown
 ## Handoff Audit: [Scope / Module Name]
 
-### Language Check (Blocker)
-- **Status:** [TypeScript OK / JavaScript codebase — dimension 14 blocker]
-- **Impact:** [If JS: dimensions 3, 4, 6, 7, 14 structurally compromised; recommend TS migration]
+### Stack Detected
+- **Stack:** [React+TS / React+JS / Next.js / Unsupported]
+- **Adaptations:** [Next.js overrides applied / JS JSDoc path / none]
 
-### Design Intent & Fidelity Status
-- **Status:** [OK / AT RISK — layout, micro-interactions, animation feel]
+### Design Fidelity (audit mode)
+- **Status:** Not evaluated in audit mode (code-only scan). Refactor mode preserves design intent per Core Constraints.
+- **Code-level layout risks:** [Only if grep finds DOM-breaking patterns, wrapper changes proposed, etc. — else "None identified"]
 
 ### Flagged Interactions (code-level scan)
-- [List suspicious animation/hover/timeout patterns with file paths and reasoning, OR state "None found after code scan"]
+| File:Line | Pattern | Reason |
+|-----------|---------|--------|
+| `src/components/X.tsx:88` | `stiffness: 800` | Likely jank — spring too stiff |
+
+Or: `None found after code scan.`
+
+### Dimension 8 — Reinvented Primitives (replace)
+| Component | File:Line | Suggested Replacement |
+|-----------|-----------|----------------------|
+
+### Dimension 8 — Genuine Custom (preserve)
+| Component | File:Line | Why Custom |
+|-----------|-----------|------------|
 
 ### Violations
 | # | Dimension | Issue | Severity | Evidence |
 |---|-----------|-------|----------|----------|
-| [1-18] | [Dimension Name] | [Specific violation] | [High / Medium / Low] | `path:line` or grep output |
+| 1b | Reusability Pass | [plain language issue + why severity] | High/Medium/Low | `path:line` or grep — distinct per row |
 
 ### Vibecode Smells Detected
-- **[Smell Name]:** [File locations + details]
+- **[Smell Name]:** [File:line locations + details]
 
 ### Grep Evidence Summary
-- [Required: summarize output from grep patterns below, or equivalent regex results]
+- [Required: summarize output from grep patterns below]
 
 ### Recommended Fix Order
-1. **[Dimension #] - [Fix]**: Why first.
+1. **[Dimension #] - [Fix in plain language]**: Why first.
 
 ### Dimensions Passed
 - **Dimension [X] - [Name]**: Why it passed (with evidence).
 
 ### Dimensions Unevaluated
-- **Dimension [X] - [Name]**: Why scan was not performed (e.g., dim 8 without primitive scan).
+- **Dimension [X] - [Name]**: Why scan was not performed.
 ```
 
 ## Checklist
 
 ```
-Blocker Check (do this FIRST, report at top of audit output):
-- [ ] Language Check — if codebase is .js/.jsx instead of .ts/.tsx, flag as dimension 14 blocker; dimensions 3, 4, 6, 7, 14 are structurally compromised
+Stack detection (do this FIRST):
+- [ ] Stack identified — React+TS, React+JS, Next.js, or redirect if unsupported
 
-Pre-checks:
-- [ ] Design Surface Fidelity — layout, spacing, animations, interactions render identically before and after
-- [ ] Implementation Improvements — any animation/interaction refactors preserve perceived feel, not just code shape
-- [ ] Flagged Interactions — scan code for interaction smells even without browser (see patterns below); list findings or explicitly state none found; do NOT skip this section
+Pre-checks (audit mode):
+- [ ] Design Fidelity — do NOT use "AT RISK"; state "Not evaluated in audit mode" unless code-level DOM/animation risks found
+- [ ] Flagged Interactions — code scan with distinct file:line per finding, or explicitly "None found"
+- [ ] Plain language — all Issue/Recommended Fix text rewritten for non-technical users
 
 Handoff Audit Progress:
-- [ ] 1.  Component Architecture — logic/presentation split; god-components broken
-- [ ] 1b. Reusability Pass (separate step) — duplicated UI patterns identified with file locations; consolidated into shared primitives in components/ui/
+- [ ] 1.  Component Architecture — logic/presentation split; god-components broken; DOM hierarchy guard
+- [ ] 1b. Reusability Pass — SEPARATE ROW ALWAYS — duplicate exports, similar filenames, repeated prop shapes; never merge into dim 1
 - [ ] 2.  Data Extraction — MOCK_/seed data in /src/data/, not inline in UI components
-- [ ] 3.  Canonical Domain Types — domain.ts as strict TypeScript API contract
-- [ ] 4.  API Contract Stubs — typed async api.ts with simulated latency; all stubs carry @backend annotations; no component imports mock data directly; no component calls fetch() directly (including maps, charts, third-party visuals). ALL OR NOTHING — any direct fetch = fail
-- [ ] 5.  State Management — context/reducers with loading/error/optimistic states
-- [ ] 6.  Read-Only / RBAC — guarded setters; inert attribute for read-only roles
-- [ ] 7.  Backend Integration Markers — @backend annotations match domain.ts; BACKEND_CONTRACT.md generated
-- [ ] 8.  Component Library Compliance — ACTIVELY SCAN for reinvented primitives; produce two lists: (a) reinvented primitives with file locations, (b) genuine custom components to preserve. If no scan performed, mark UNEVALUATED not passing
-- [ ] 9.  CSS Token Compliance — semantic CSS variables, no hardcoded hex codes remaining
-- [ ] 10. Destructive Action Safety — ConfirmDialog or Toast+Undo gates all delete/reset actions
-- [ ] 11. Routing & Navigation — react-router-dom, lazy routes, route guards
-- [ ] 12. Component Performance — useMemo, useCallback, React.memo on heavy lists
-- [ ] 13. Accessibility — semantic HTML, ARIA, keyboard nav, modal focus trap, aria-live regions
-- [ ] 14. Linting, Formatting & Typing — no any, strict TS, clean imports, ESLint/Prettier
-- [ ] 15. Error Boundaries & Resilience — route error boundaries, toast on API failures, loading skeletons
-- [ ] 16. QA Test Selectors — data-testid on all primary interactive elements and layout sections
-- [ ] 17. Dependency & Environment Hygiene — no unused deps, pinned versions, .env.example present
-- [ ] 18. File Hygiene & Icons — no orphans, unused imports, dead code; inline SVGs over 10 lines extracted to icons/
+- [ ] 3.  Canonical Domain Types — domain.ts/js as single source of truth; JS: evaluate JSDoc quality not just presence
+- [ ] 4.  API Contract Stubs — all data via api.ts/js; @backend annotations; no direct fetch in components. ALL OR NOTHING
+- [ ] 5.  State Management — context/reducers; no 5+ useState chains
+- [ ] 6.  Read-Only / RBAC — guarded setters; inert for read-only roles
+- [ ] 7.  Backend Integration Markers — @backend matches domain; BACKEND_CONTRACT.md sync
+- [ ] 8.  Component Library Compliance — BOTH lists required (reinvented + genuine custom); unevaluated if scan skipped
+- [ ] 9.  CSS Token Compliance — colors, spacing, sizing, typography; no inline hardcoded px/rem/em
+- [ ] 10. Destructive Action Safety — ConfirmDialog or Toast+Undo
+- [ ] 11. Routing & Navigation — react-router-dom or Next.js file routes
+- [ ] 12. Component Performance — useMemo, useCallback, React.memo
+- [ ] 13. Accessibility — semantic HTML, ARIA, keyboard nav, aria-live
+- [ ] 14. Linting & Code Quality — TS: no any; JS: PropTypes + quality JSDoc
+- [ ] 15. Error Boundaries & Resilience — boundaries, toast, loading skeletons
+- [ ] 16. QA Test Selectors — data-testid on primary interactive elements
+- [ ] 17. Dependency & Environment Hygiene — no unused deps, .env.example
+- [ ] 18. File Hygiene & Icons — no orphans; SVG paths >10 lines extracted
 ```
 
 ## Evidence Rules
 
-Every dimension marked as failing must include at least one specific file path, line reference, or grep output proving the violation. The audit is evidence-based, not opinion-based.
+Every dimension marked as failing must include at least one specific **`path:line`** or grep output proving the violation.
 
-- Citing the same file twice as two different sources is padding, not evidence. Each citation must point to a distinct location or finding.
-- The grep patterns below are **required evidence-gathering steps**, not optional. Run them and include the output (or a summary) in the audit report.
-- If the environment doesn't support shell execution, run equivalent regex searches and show results.
+- **Banned:** citing the same file twice as two different evidence entries without different line numbers and separate explanations.
+- **Banned:** merging dimension 1b findings into dimension 1.
+- **Required:** grep patterns below must be run (or equivalent regex) and summarized in Grep Evidence Summary.
+- **Severity required:** every violation row includes High/Medium/Low with one-line justification (see Severity Scale in SKILL.md).
 
 ---
 
 ## Quick grep patterns
 
-Run these to spot common violations. **These are required in audit mode — include output in the report.**
+Run these to spot common violations. **Required in audit mode — include output in the report.**
 
 ```bash
-# === BLOCKER CHECK (run first) ===
-
-# Language check — are we in JS or TS?
-find src -name '*.jsx' -o -name '*.js' | head -5 && echo "--- JS files found: flag as dimension 14 blocker ---"
-find src -name '*.tsx' -o -name '*.ts' | head -5 && echo "--- TS files found ---"
+# === STACK DETECTION ===
+rg '"next"' package.json && echo "Next.js detected" || echo "Not Next.js"
+find src -name '*.tsx' -o -name '*.ts' | head -3
+find src -name '*.jsx' -o -name '*.js' | head -3
 
 # === DIMENSION 1: ARCHITECTURE ===
+find src \( -name '*.tsx' -o -name '*.jsx' \) | xargs -I {} awk 'END{if(NR>400)print FILENAME, NR}' {}
 
-# God components (files over 400 lines)
-find src -name '*.tsx' -o -name '*.jsx' | xargs -I {} awk 'END{if(NR>400)print FILENAME, NR}' {}
-
-# Duplicated component class names (reusability smell)
+# === DIMENSION 1b: REUSABILITY (separate — do not merge with dim 1) ===
+rg "^export (default )?(function|const) \w+" src/components src/pages --glob '*.{tsx,jsx}' -o | sort | uniq -d
+find src/components src/pages -iname '*button*' -o -iname '*card*' -o -iname '*badge*' -o -iname '*input*' | sort
+rg "variant.*size|size.*variant" src/components --glob '*.{tsx,jsx}' -l
 rg -o 'className="[^"]{60,}"' src --glob '*.{tsx,jsx}' | sort | uniq -d
 
 # === DIMENSION 2 & 4: DATA FLOW ===
-
-# Direct mock data imports inside components or pages (hard rule violation)
 rg "MOCK_|from.*\/data\/" src/components src/pages --glob '*.{tsx,ts,jsx,js}'
-
-# Inline mock arrays in components (not routed through api.ts)
 rg "const \w+ = \[" src/components src/pages --glob '*.{tsx,ts,jsx,js}'
-
-# Third-party components fetching directly (dimension 4 — all or nothing)
 rg "fetch\(|axios\.|\.get\(|\.post\(" src/components src/pages --glob '*.{tsx,ts,jsx,js}'
 
+# === DIMENSION 3: DOMAIN TYPES / JSDOC QUALITY ===
+rg "@typedef" src/domain.js 2>/dev/null || echo "No domain.js typedefs"
+rg "interface |type " src/domain.ts 2>/dev/null || echo "No domain.ts interfaces"
+rg "@typedef" src --glob '*.{js,jsx}' | wc -l
+rg "@property" src/domain.js 2>/dev/null
+
 # === DIMENSION 7: BACKEND MARKERS ===
-
-# Missing @backend annotations in api.ts (or api.js)
 rg "export (async )?function" src/api.ts src/api.js 2>/dev/null | rg -v "@backend"
-
-# Hardcoded API URLs
 rg "localhost|127\.0\.0\.1|http://|https://" src --glob '*.{tsx,ts,jsx,js}' --glob '!*.test.*'
 
-# === DIMENSION 8: COMPONENT LIBRARY COMPLIANCE ===
+# === DIMENSION 8: COMPONENT LIBRARY ===
+rg -i "dropdown|modal|tooltip|popover|datepicker|date-picker|tablist|select.*option" src/components --glob '*.{tsx,jsx}' | rg -v "node_modules|shadcn|radix|headlessui|@radix"
 
-# Reinvented UI primitives (candidates for shadcn/Radix replacement)
-rg -i "dropdown|modal|tooltip|popover|datepicker|date-picker|tablist|select.*option" src/components --glob '*.{tsx,jsx}' | rg -v "node_modules|shadcn|radix|headlessui"
-
-# === DIMENSION 9: CSS TOKENS ===
-
-# Hardcoded colors
+# === DIMENSION 9: CSS TOKENS (colors, spacing, sizing, typography) ===
 rg "#[0-9a-fA-F]{3,8}|rgb\(|hsl\(" src --glob '*.{tsx,jsx,css,scss}'
-
-# Hardcoded Tailwind arbitrary values (candidates for CSS variables)
+rg "style=\{\{" src --glob '*.{tsx,jsx}'
+rg "fontSize:|padding:|margin:|width:|height:|lineHeight:|letterSpacing:|fontWeight:" src --glob '*.{tsx,jsx}'
+rg "\d+px" src --glob '*.{tsx,jsx}' | rg "style="
+rg "(m|p|gap|w|h|text|leading|tracking)-\[" src --glob '*.{tsx,jsx}'
 rg "\[#[0-9a-fA-F]{3,8}\]|\[[\d.]+px\]" src --glob '*.{tsx,jsx}'
 
 # === DIMENSION 10: DESTRUCTIVE ACTIONS ===
-
-# Destructive actions without confirm dialog
 rg "onClick=\{.*delete|\.remove\(|reset\(" src --glob '*.{tsx,jsx}'
 
 # === DIMENSION 5 & 11: STATE & ROUTING ===
-
-# Conditional routing anti-pattern
 rg "page === |currentPage|setPage\(" src --glob '*.{tsx,jsx}'
-
-# useState chains (5+ in one component — reducer candidate)
 rg -l "useState" src --glob '*.{tsx,jsx}' | xargs -I {} sh -c 'count=$(rg -c "useState" {}); [ "$count" -ge 5 ] && echo "{}: $count useState calls"'
 
 # === DIMENSION 14: TYPING ===
-
-# any types
 rg ":\s*any\b|as any" src --glob '*.{tsx,ts,jsx,js}'
 
 # === DIMENSION 16: QA SELECTORS ===
-
-# Missing data-testid
 rg -L "data-testid" src/components --glob '*.{tsx,jsx}'
 
 # === DIMENSION 17 & 18: HYGIENE ===
-
-# Unused dependencies
 npx depcheck --skip-missing 2>/dev/null
-
-# Console.log in production code
 rg "console\.(log|warn|error)" src --glob '*.{tsx,ts,jsx,js}' --glob '!*.test.*'
-
-# Inline SVG blocks (extract to icons/)
 rg -l "<svg" src/components src/pages --glob '*.{tsx,jsx}'
 
-# === FLAGGED INTERACTIONS (code-level, no browser needed) ===
-
-# Framer Motion springs with extreme values (likely jank)
+# === FLAGGED INTERACTIONS ===
 rg "stiffness:\s*[5-9]\d{2,}|damping:\s*[0-4]\b" src --glob '*.{tsx,jsx}'
-
-# CSS transitions with 0ms/0s duration (likely missing or broken)
 rg "transition.*0ms|transition.*0s[^0-9]|duration-0" src --glob '*.{tsx,jsx,css,scss}'
-
-# setTimeout/setInterval driving visual changes (should use CSS or animation library)
 rg "setTimeout|setInterval" src/components src/pages --glob '*.{tsx,jsx}'
-
-# Hover/focus handlers toggling state directly (likely flicker without debounce)
 rg "onMouse|onHover|onFocus.*set[A-Z]" src/components --glob '*.{tsx,jsx}'
 ```
 
@@ -189,20 +173,18 @@ rg "onMouse|onHover|onFocus.*set[A-Z]" src/components --glob '*.{tsx,jsx}'
 
 | Smell | Grep Command |
 |-------|---------|
-| JavaScript codebase (blocker) | `find src -name '*.jsx' -o -name '*.js' \| head -5` |
 | God component (400+ lines) | `find src \( -name '*.tsx' -o -name '*.jsx' \) \| xargs -I {} awk 'END{if(NR>400)print FILENAME,NR}' {}` |
-| Direct mock import in component | `rg "MOCK_\|from.*\/data\/" src/components src/pages --glob '*.{tsx,jsx}'` |
-| Third-party direct fetch | `rg "fetch\(\|axios\." src/components src/pages --glob '*.{tsx,jsx}'` |
-| Reinvented primitive | `rg -i "dropdown\|modal\|tooltip\|popover" src/components --glob '*.{tsx,jsx}' \| rg -v "radix\|shadcn"` |
-| Duplicated component variants | `rg -o 'className="[^"]{60,}"' src --glob '*.{tsx,jsx}' \| sort \| uniq -d` |
-| No TypeScript interfaces | `rg -L "interface\|type " src --glob '*.{tsx,jsx}'` |
-| Missing loading states | `rg -L "loading\|isLoading\|skeleton\|Spinner" src --glob '*.{tsx,jsx}'` |
-| Hardcoded hex in Tailwind | `rg "\[#[0-9a-fA-F]{3,8}\]" src --glob '*.{tsx,jsx}'` |
-| Inline SVGs (10+ lines) | `rg -l "<svg" src/components src/pages --glob '*.{tsx,jsx}'` |
-| Missing @backend annotations | `rg "export (async )?function" src/api.ts src/api.js 2>/dev/null \| rg -v "@backend"` |
-| Missing data-testid | `rg -L "data-testid" src/components --glob '*.{tsx,jsx}'` |
-| Suspicious animation configs | `rg "stiffness:\s*[5-9]\d{2,}\|damping:\s*[0-4]\b" src --glob '*.{tsx,jsx}'` |
-| setTimeout driving visuals | `rg "setTimeout\|setInterval" src/components src/pages --glob '*.{tsx,jsx}'` |
+| Duplicate component exports (1b) | `rg "^export (default )?(function\|const) \w+" src/components --glob '*.{tsx,jsx}' -o \| sort \| uniq -d` |
+| Similar button/card filenames (1b) | `find src -iname '*button*' -o -iname '*card*'` |
+| Direct mock import | `rg "MOCK_\|from.*\/data\/" src/components src/pages` |
+| Third-party direct fetch | `rg "fetch(\|axios\." src/components src/pages` |
+| Reinvented primitive | `rg -i "dropdown\|modal\|tooltip" src/components \| rg -v "radix\|shadcn"` |
+| Inline style hardcoding (9) | `rg "style=\{\{" src --glob '*.{tsx,jsx}'` |
+| Hardcoded fontSize/padding (9) | `rg "fontSize:\|padding:\|margin:" src --glob '*.{tsx,jsx}'` |
+| Tailwind arbitrary spacing (9) | `rg "(m\|p\|gap\|w\|h)-\[" src --glob '*.{tsx,jsx}'` |
+| Weak JSDoc (3, JS mode) | `rg "@typedef" src/domain.js \| wc -l` vs entities used in UI |
+| Missing @backend | `rg "export (async )?function" src/api.ts src/api.js 2>/dev/null \| rg -v "@backend"` |
+| Suspicious animation | `rg "stiffness:\s*[5-9]\d{2,}" src --glob '*.{tsx,jsx}'` |
 
 ---
 
@@ -210,18 +192,17 @@ rg "onMouse|onHover|onFocus.*set[A-Z]" src/components --glob '*.{tsx,jsx}'
 
 ```
 src/
-├── data/               # Extracted mock/seed data (never imported directly by components — always via api.ts)
-├── domain.ts           # Canonical business types (API contracts)
-├── api.ts              # Typed async stubs with @backend annotations
+├── data/               # Extracted mock/seed data (never imported directly by components — always via api.ts/js)
+├── domain.ts           # or domain.js — canonical business types
+├── api.ts              # or api.js — typed async stubs with @backend annotations
 ├── components/
-│   ├── ui/             # Shared reusable primitives — one per pattern (Button, Card, Badge, Input...)
-│   ├── icons/          # Extracted SVG icon components (inline SVGs over 10 lines moved here)
+│   ├── ui/             # Shared reusable primitives — one per pattern
+│   ├── icons/          # Extracted SVG icon components
 │   └── ConfirmDialog.tsx
 ├── contexts/           # One isolated context provider per domain
 ├── hooks/              # Shared custom hooks
-├── routes/             # react-router setup + guards
-├── pages/              # Route-level page components
+├── routes/             # react-router setup + guards (or Next.js app/ pages/)
 └── utils/              # Helpers, formatters
-.env.example            # Required env vars (stubbed)
-BACKEND_CONTRACT.md     # Generated integration doc — includes replaced primitives flagged for dev swap
+.env.example
+BACKEND_CONTRACT.md
 ```
