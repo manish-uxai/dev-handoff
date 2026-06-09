@@ -4,6 +4,8 @@ Universal [Agent Skill](https://agentskills.io) that transforms designer-built v
 
 Works across **Claude Code**, **OpenAI Codex**, **Cursor**, **GitHub Copilot**, and any agent supporting the open `SKILL.md` format.
 
+**Repository:** [github.com/manish-uxai/vibe-to-prod](https://github.com/manish-uxai/vibe-to-prod)
+
 ## The Problem
 
 Designers build high-fidelity prototypes in code (Bolt, v0, Lovable, Replit, Claude Artifacts). The UI looks final, but the codebase is messy. Developers won't integrate it — they rebuild from Figma instead.
@@ -34,6 +36,12 @@ See [`vibe-to-prod/SKILL.md`](vibe-to-prod/SKILL.md) for the full specification.
 ## Install
 
 ```bash
+npx skills add manish-uxai/vibe-to-prod -g -y
+```
+
+Project-only:
+
+```bash
 npx skills add manish-uxai/vibe-to-prod -y
 ```
 
@@ -56,13 +64,22 @@ Copy `vibe-to-prod/` to your agent skills path. **Directory name must match `nam
 | Codex | `~/.codex/skills/vibe-to-prod/` | `.codex/skills/vibe-to-prod/` |
 | GitHub Copilot | `~/.copilot/skills/vibe-to-prod/` | `.github/skills/vibe-to-prod/` |
 
+## Usage
+
+| Agent | Example |
+|-------|---------|
+| Claude Code | `/vibe-to-prod audit src/pages/Dashboard.tsx` |
+| Cursor | "Use vibe-to-prod to refactor this prototype for backend handoff" |
+| Codex | `/vibe-to-prod quick src/` |
+| Copilot | "Audit this codebase against the vibe-to-prod 18-dimension framework" |
+
 ## Repository structure
 
 ```
-vibe-to-prod/                  # GitHub repo name (unchanged)
+vibe-to-prod/
 ├── README.md
 ├── LICENSE
-└── vibe-to-prod/             # Skill directory (matches frontmatter name)
+└── vibe-to-prod/
     ├── SKILL.md
     └── references/
         ├── audit-checklist.md
