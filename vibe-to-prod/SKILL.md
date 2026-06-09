@@ -1,91 +1,98 @@
 ---
 name: vibe-to-prod
-description: Transforms high-fidelity designer-built React or Next.js prototypes into production-ready, frontend-only codebases. Detects the project stack first and either proceeds, adapts, or guides the user to the right path. Use this skill when a designer wants to hand off their coded prototype to a frontend developer, when someone wants to make their vibe-coded UI "dev-ready", when asked to audit or refactor a prototype for backend integration, or when the goal is to eliminate UI re-development by treating the prototype as the final production frontend. Triggers on phrases like "handoff to dev", "make this production ready", "clean up my prototype", "prep for backend integration", "frontend handoff", "vibe to prod", or any mention of sharing a codebase with a frontend developer.
+description: Transforms high-fidelity designer-built React or Next.js prototypes into production-ready codebases. Detects the project stack and adapts automatically. The output is clean, production-survivable code — not a documentation package. Use this skill when a designer wants to make their vibe-coded UI production-ready, when someone says "make this dev-ready", "clean up my prototype", "prep for integration", "vibe to prod", or any mention of turning a coded prototype into something a developer can ship.
 license: MIT
-compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Supports React and Next.js projects. Other stacks trigger guided redirection.
+compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Supports React and Next.js projects (TypeScript or JavaScript). Other stacks trigger guided redirection.
 metadata:
   author: vibe-to-prod
-  version: "3.3.0"
-  framework: 18-dimension-handoff
+  version: "4.0.0"
+  framework: 19-dimension-handoff
 ---
 
-# Philosophy: Figma-less Direct-to-Code Handoff
+# Philosophy
 
-Traditional handoff is broken. A designer spends weeks — sometimes months — building a polished, high-fidelity prototype in code. Then they hand over a Figma file or screenshots. The frontend developer spends another 1–2 months rebuilding the exact same UI from scratch. Fidelity degrades. Micro-interactions get lost. Time is wasted twice.
+Traditional handoff is broken. A designer spends weeks building a polished, high-fidelity prototype in code. Then they hand over a Figma file or screenshots. The frontend developer spends another 1–2 months rebuilding the exact same UI from scratch. Fidelity degrades. Micro-interactions get lost. Time is wasted twice.
 
 **We break this cycle entirely.**
 
-The designer-builder has already developed the final, high-fidelity production UI. Your job is to treat this prototype codebase as the **actual production frontend** and harden the architecture underneath it — so a frontend engineer can open this project, plug in real APIs, and ship. Zero visual rewrites. Zero animation loss. Zero layout shifts. **1–2 months of UI development saved.**
+The designer-builder has already developed the final production UI. Your job is to harden the code so it survives real data, real users, and real edge cases — then a developer opens the project and starts integrating APIs immediately. **1–2 months of UI development saved.**
 
-You are not "cleaning up a throwaway demo." You are making the invisible infrastructure production-ready while leaving everything the user can see and feel completely intact.
+**The output is production-ready code, not a documentation package.** No separate contract files. No lists of what was changed. The code itself is the deliverable — clean enough that a developer can read it and understand everything they need.
 
 ---
 
 # Step 0: Stack Detection
 
-**Before anything else, identify what the user has built.** Do not assume React. Check `package.json`, file extensions, and folder structure. Then follow the response path below.
+**Before anything else, identify what the user has built.** Check `package.json`, file extensions, and folder structure.
 
 ---
 
 ## React (with TypeScript) — `.tsx` / `.ts`
-Proceed directly with all 18 dimensions. This is the ideal path.
+Proceed with all 19 dimensions.
 
 ---
 
 ## React (with JavaScript) — `.jsx` / `.js`
-Fully supported. Proceed directly with all 18 dimensions — the skill automatically applies the JavaScript-appropriate approach for each one. No warnings, no recommendations unless the user asks.
+Fully supported. Proceed with all 19 dimensions — the skill automatically applies the JavaScript-appropriate approach for each one. No warnings, no recommendations unless the user asks.
 
 ---
 
 ## Next.js — `next.config.*` present or `next` in `package.json`
-Proceed with all 18 dimensions, but apply the Next.js overrides in the section below. Say something like:
-> "Your project is built with Next.js — great choice. This skill works well with Next.js. A few things work differently here so I'll adapt as we go."
+Proceed with all 19 dimensions, applying the Next.js overrides listed later in this document.
 
 ---
 
 ## Plain HTML / CSS / JS — no `package.json`, or only `.html` / `.css` files
-Do not proceed with the audit. Explain clearly and offer a path forward:
+Do not proceed. Explain:
 
-> "Your project is built with plain HTML and CSS, which is a great way to prototype quickly. This skill is designed for React-based projects — here's why that matters for your handoff:
+> "Your project is built with plain HTML and CSS. This skill is designed for React-based projects — the component structure, data flow patterns, and production-readiness checks are all React-specific.
 >
-> Right now, a developer would need to manually convert your HTML into components, set up routing, connect APIs, and build out all the interactions from scratch. That's the exact problem this skill is designed to avoid.
+> If we convert your prototype to React first, everything gets structured and ready — components, data flow, API connections — and a developer can skip straight to integration. That could save them 4-6 weeks.
 >
-> If we convert your prototype to React first, your developer gets everything structured and ready — components, data flow, API connections — and can skip straight to integration. That's roughly 4-6 weeks of work they won't have to do.
->
-> Would you like me to help convert your HTML prototype to React so we can make it fully handoff-ready?"
+> Want me to help convert your HTML prototype to React?"
 
 ---
 
 ## Vue.js, Svelte, Angular, or other frameworks
-Do not proceed with the audit. Explain clearly:
+Do not proceed. Explain:
 
-> "Your project is built with [detected framework]. This skill is currently built around React and Next.js — the handoff pipeline, component patterns, and API contract structure are all React-specific, so running it on a [framework] project would give you inaccurate results.
+> "Your project uses [detected framework]. This skill is built around React and Next.js, so running it here would give inaccurate results.
 >
-> You have two options:
-> 1. I can help you migrate this to React so the full handoff pipeline works
-> 2. We can do a manual review of your project structure and I can give you general handoff advice, though it won't be as precise
->
-> Which would work better for you?"
+> Two options: I can help migrate to React so the full pipeline works, or I can give general handoff advice without the structured audit. Which works better?"
 
 ---
 
-## Language and tone rule (applies to all stack responses)
+## Language and tone rule
 
-**Always communicate in plain, friendly language.** This skill is used by designers and PMs, not just developers. Avoid technical jargon unless the user is clearly technical. Translate everything:
+**This skill is used by designers and PMs, not just developers.** Always communicate in plain, friendly language unless the user is clearly technical.
+
+**Before writing any finding, rewrite it using this table if the user is non-technical. This is mandatory, not optional.** Reserve file paths, line numbers, and grep output for evidence columns only — never in plain-language prose shown to designers.
 
 | Instead of this | Say this |
 | :--- | :--- |
-| "dimension 14 blocker" | "there's one thing worth fixing before handoff" |
-| "JSDoc typings" | "an older way of describing your data" |
-| "reducer isolation" | "a cleaner way to manage all your app's moving parts" |
+| "god-component" | "one file doing too many things" |
+| "reducer isolation" | "a cleaner way to organize how data changes" |
+| "API contract stubs" | "placeholder functions where real data will connect" |
+| "hardcoded hex values" | "colors written directly in the code instead of using your design system" |
 | "TypeScript interface" | "a description of what your data looks like" |
-| "god-component" | "one file that's doing too many things at once" |
-| "API contract stubs" | "placeholder connections where real data will flow in" |
-| "hardcoded hex values" | "colors written directly into the code instead of using your design system" |
+| "dimension 14 blocker" | "there's something worth fixing" |
+| "PropTypes not enforced" | "components don't describe what data they expect" |
+| "DOM hierarchy guard" | "keeping the visual structure exactly the same" |
+| "memoization" | "performance shortcuts so the app stays fast" |
 
-Read the user's messages for cues. If they use terms like "component", "props", or "state" correctly, you can be more technical. If they say "my app" or "my design", stay plain.
+Read the user's messages for cues. If they use "component", "props", "state" correctly — be more technical. If they say "my app" or "my design" — stay plain.
 
-**Mandatory language enforcement:** Before writing ANY audit finding, violation, or recommendation to a non-technical user, rewrite it using the translation table above. If the user has not used developer jargon in their messages, every finding in the Issue and Recommended Fix sections must be in plain language. Reserve file paths, line numbers, and grep output for the Evidence column only. Never output raw dimension numbers or framework jargon in prose unless the user is clearly technical.
+---
+
+## Severity scale
+
+Every finding must include a severity level with this definition:
+
+| Severity | Meaning |
+| :--- | :--- |
+| **High** | Will break in production, block API integration, or cause data loss. Fix before handoff. |
+| **Medium** | Creates friction for the developer or degrades user experience. Fix soon after handoff. |
+| **Low** | Cleanup that improves code quality. Can be addressed over time. |
 
 ---
 
@@ -93,17 +100,11 @@ Read the user's messages for cues. If they use terms like "component", "props", 
 
 ## 1. Preserve Design Intent, Allow Implementation Improvements
 
-The **design surface** — layout, spacing, visual hierarchy, interaction behavior, animation feel — is sacred. Do not alter it.
+The **design surface** — layout, spacing, visual hierarchy, interaction behavior, animation feel — is sacred.
 
-The **engineering substrate** — how animations are implemented, how state flows, how components are structured internally — can and should be improved, as long as the perceived result is indistinguishable or better.
+The **engineering substrate** — how animations are implemented, how state flows, how components are structured — can and should be improved, as long as the perceived result is indistinguishable or better.
 
-Concretely:
-- A Framer Motion spring with a config causing frame drops → refactor the config, preserve the feel
-- An animation triggering unnecessary re-renders → fix the implementation, keep the motion
-- A hover state that flickers due to a CSS specificity bug → fix it, that's not intentional design
-- A layout that renders identically after a component split → safe to refactor
-
-**When a vibe-coded interaction appears buggy rather than intentional, surface it to the developer as a flag rather than silently preserving or silently fixing it.**
+**When a vibe-coded interaction appears buggy rather than intentional, flag it rather than silently preserving or fixing it.**
 
 **Code-detectable interaction smells (no browser required):**
 - Framer Motion springs with `stiffness` > 500 or `damping` < 5 (likely jank)
@@ -112,84 +113,52 @@ Concretely:
 - Animation components depending on frequently re-rendering parent state (likely frame drops)
 - `setTimeout`/`setInterval` driving visual transitions instead of CSS or animation libraries
 
-## 2. Component Replacement Strategy: Prefer Swappable Primitives
+## 2. Component Strategy
 
-Vibe-coded prototypes often hand-roll UI primitives — dropdowns, modals, tooltips, tabs, date pickers — because the AI generated them inline. These look correct in demo conditions but lack keyboard navigation, scroll-locking, portal rendering, focus trapping, and edge-case resilience.
+Vibe-coded prototypes hand-roll UI primitives — dropdowns, modals, tooltips, tabs — that look correct but lack keyboard navigation, focus trapping, and edge-case resilience. They also produce duplicated components across files.
 
-**Distinguish two types of custom components:**
+**Replace reinvented primitives** (hand-rolled dropdown, modal, tooltip, tabs) with **shadcn/ui** or **Radix UI** equivalents, preserving the designer's exact visual styling. These are production-tested, accessible, and a dev can easily swap them with their own design system later if needed.
 
-| Type | Definition | Action |
-| :--- | :--- | :--- |
-| **Genuine custom** | A novel interaction or visualization specific to this product | Preserve and harden |
-| **Reinvented primitive** | A hand-rolled dropdown, modal, tooltip, tabs, etc. | Replace with headless library equivalent |
+**Consolidate duplicated components.** Scan the entire codebase for repeated UI patterns — the same button, card, badge, input, or layout block rebuilt with slight variations across files. Merge into shared primitives under `components/ui/`.
 
-For reinvented primitives, replace with **shadcn/ui**, **Radix UI**, or **Headless UI** components styled to match the designer's exact visual output. Do not use raw custom implementations.
+**Preserve genuine custom components** — novel interactions or product-specific visualizations that no library offers.
 
-**Why shadcn specifically:** When a frontend dev integrates their own design system (e.g., Storybook component library), replacing a shadcn component is a clean prop-to-prop swap. Replacing a custom vibe-coded component requires reverse-engineering intent first. shadcn gives the dev a predictable, well-documented swap surface.
+## 3. API Stubs Are Mandatory — No Direct Data in Components
 
-## 3. Enforce Component Reusability
+Components must never import mock data arrays directly or call `fetch()` internally. All data must flow through async functions in `api.ts` or `api.js`.
 
-Vibe-coding produces duplicated components — the same button, card, badge, or input rebuilt slightly differently across multiple files. Before a dev can replace anything with their own design system, they need one component to replace, not twelve variants.
+**This applies to every component without exception** — maps fetching GeoJSON, charts loading CSV/JSON, tables pulling datasets. If a component gets data from anywhere other than a prop or an API stub function, it violates this rule.
 
-**Scan the entire codebase for repeated UI patterns and consolidate them into shared primitives in `components/ui/`.** A developer should be able to swap one `<Button />` import and have it propagate everywhere.
-
-## 4. API Stubs Are Mandatory — No Direct Mock Data in Components
-
-Components must never import mock data arrays directly. All data must flow through typed async functions in `api.ts`, even if those functions return mock data internally.
-
-**This is a hard rule, not guidance.** It applies to every component without exception — including maps fetching GeoJSON, charts loading CSV/JSON, tables pulling datasets, and any third-party visual integration that makes its own network requests. If a component calls `fetch()` or imports data directly, it violates this rule regardless of what it renders.
-
-When the developer connects real APIs, they change only the function body inside `api.ts`. Every component that consumes that data updates automatically — no component-level changes required.
+When the developer connects real APIs, they change only the function body inside `api.ts`/`api.js`. Every component updates automatically.
 
 ---
 
-# The 18-Dimension Handoff Framework
+# The 19-Dimension Framework
 
 ## Structure & Separation
 
 ### 1. Component Architecture & DOM Hierarchy Guard
 
-- Isolate stateful logic from presentational components. Enforce one domain context per provider.
-- Break massive "god-components" (400+ lines) into focused, presentational child modules.
-- **DOM Hierarchy Guard:** Preserve the exact DOM layout hierarchy when splitting components. Do not introduce redundant wrapper elements or alter CSS display properties (`flex`, `grid`) of parent-child relationships — this instantly breaks style containment and positioning.
-
-### 1b. Component Reusability Pass (separate dimension — never merge with 1)
-
-This is a **mandatory separate audit step**. Do not fold reusability findings into dimension 1. Report dimension 1 and 1b as distinct rows in every audit.
-
-**Detection methods (run all that apply):**
-
-1. **Duplicate export names** — same component name exported from multiple files:
-   ```bash
-   rg "^export (default )?(function|const) \w+" src/components src/pages --glob '*.{tsx,jsx}' -o | sort | uniq -d
-   ```
-2. **Similar file names** — `Button.tsx`, `CustomButton.tsx`, `PrimaryButton.tsx` in different folders:
-   ```bash
-   find src -iname '*button*' -o -iname '*card*' -o -iname '*badge*' | sort
-   ```
-3. **Repeated JSX prop shapes** — same prop interface rebuilt (e.g., `variant`, `size`, `onClick`) across files without a shared import:
-   ```bash
-   rg "variant.*size|size.*variant" src/components --glob '*.{tsx,jsx}' -l
-   ```
-4. **className-only duplication** — long identical class strings (weak signal; use with methods 1–3):
-   ```bash
-   rg -o 'className="[^"]{60,}"' src --glob '*.{tsx,jsx}' | sort | uniq -d
-   ```
-
-In audit mode: list every duplicated pattern with **all file paths**, then state what shared primitive in `components/ui/` would replace them. In refactor mode: consolidate before marking 1b passed.
+- Isolate stateful logic from presentational components.
+- Break god-components (400+ lines) into focused child modules.
+- **DOM Hierarchy Guard:** Preserve the exact DOM layout hierarchy when splitting. No redundant wrappers or altered CSS display properties.
+- **Reusability pass (report as its own subsection in audit output):** Scan the entire codebase — not just the audited module — for duplicated UI patterns. Practical detection methods:
+  - Search for similarly named component files across folders (e.g., `Button.jsx` in three different directories)
+  - Search for components with overlapping `className` patterns (long identical class strings across files)
+  - Search for copy-pasted JSX structures: similar element trees with minor prop differences
+  - Read the `components/` directory structure and flag files that serve the same purpose
+  - In audit mode, list every duplicated pattern with file locations. This is not optional.
 
 ### 2. Clean Data Extraction
 
 - Move all `MOCK_` arrays, seed data, and hardcoded lists to `/src/data/`. No inline arrays in UI components.
-- Preserve the exact data shape to prevent rendering errors or layout discrepancies.
+- Preserve the exact data shape.
 
 ### 3. Canonical Domain Types (`domain.ts` / `domain.js`)
 
-The goal is a single file that describes what all your data looks like — so a developer knows exactly what to expect from every API response without reading through the whole codebase.
+A single file that describes every data entity the UI renders.
 
-**If React + TypeScript:**
-Create `domain.ts` with strict TypeScript interfaces for every entity the UI renders. Developers use these to validate backend API contracts at compile time.
-
+**If TypeScript:** strict interfaces in `domain.ts`.
 ```ts
 export interface Patient {
   id: string;
@@ -198,9 +167,7 @@ export interface Patient {
 }
 ```
 
-**If React + JavaScript:**
-Create `domain.js` with JSDoc type definitions for every entity. Not as strict as TypeScript, but gives the developer a clear map of the data structure and enables IDE autocomplete.
-
+**If JavaScript:** JSDoc typedefs in `domain.js`.
 ```js
 /**
  * @typedef {Object} Patient
@@ -210,26 +177,17 @@ Create `domain.js` with JSDoc type definitions for every entity. Not as strict a
  */
 ```
 
-In both cases: one file, one source of truth, no duplicated or conflicting type definitions across the codebase.
-
-**If React + JavaScript — JSDoc quality (not just presence):**
-Do not pass dimension 3 because `domain.js` exists. Evaluate quality:
-
-- Every entity the UI renders has a `@typedef` with all properties used in components
-- Property types match actual runtime usage (no `@property {string} id` when code uses `id` as number)
-- No duplicate `@typedef` names across files
-- `@param` and `@returns` on every function in `api.js` matching stub signatures
-- Flag incomplete JSDoc as a dimension 3 violation with specific missing or wrong properties cited
+**Quality check (both paths):** No duplicated or conflicting type definitions across the codebase. Every typedef must be complete — all fields that the UI actually uses must be documented, not just a subset. In audit mode, verify existing typedefs match actual runtime usage.
 
 ### 4. API Contract Stubs (`api.ts` / `api.js`)
 
 - **Hard rule:** No component imports mock data directly. All data flows through async functions in `api.ts` or `api.js`.
 - Implement async functions simulating latency (`await delay(300)`) for all data dependencies.
-- **Strict Envelope Rule:** Mock responses must use realistic response envelopes (e.g., `{ data, meta: { total, page } }`) rather than flat arrays.
-- **Third-Party Integrations:** Maps, charts, heatmaps — never fetch internally. Consume data via API stubs passed through state/context.
-- Every stub must carry a `// @backend` annotation.
+- **Envelope Rule:** Mock responses use realistic envelopes (`{ data, meta: { total, page } }`) not flat arrays.
+- **Third-Party Integrations:** Maps, charts, heatmaps — never fetch internally. Data via API stubs only.
+- Every stub carries a `// @backend` annotation:
 
-**If React + TypeScript:**
+**TypeScript:**
 ```ts
 // @backend POST /api/patients
 // Auth: Bearer token (JWT)
@@ -241,7 +199,7 @@ export async function createPatient(payload: CreatePatientPayload): Promise<ApiR
 }
 ```
 
-**If React + JavaScript:**
+**JavaScript:**
 ```js
 // @backend POST /api/patients
 // Auth: Bearer token (JWT)
@@ -253,187 +211,179 @@ export async function createPatient(payload) {
 }
 ```
 
-The structure, annotations, and envelope shape are identical. The only difference is the absence of type annotations in the JS version.
-
-## Backend Integration & State
+## State & Access
 
 ### 5. State Management & Reducer Isolation
 
-- Avoid chains of 5+ independent `useState` hooks causing cascading re-renders.
-- Consolidate state mutations into a reducer-based state slice with explicit action schemas, history metadata, and optional rollback hooks. Allows developers to hook up Redux or Zustand instantly.
+- Avoid chains of 5+ independent `useState` hooks.
+- Consolidate into reducer-based state with explicit action schemas. Allows developers to hook up Redux or Zustand instantly.
 
 ### 6. Read-Only / Role-Based Access Control
 
-- Guarded setters must block data mutation. Use the HTML `inert` attribute to block UI interaction for read-only roles.
-- Apply `inert={isReadOnly}` to interactive form containers to freeze modifications without altering styles.
-- **If TypeScript:** define roles as a strict union type in `domain.ts` (e.g., `type Role = 'admin' | 'viewer'`).
-- **If JavaScript:** define roles as a plain constants object in `domain.js` (e.g., `export const ROLES = { ADMIN: 'admin', VIEWER: 'viewer' }`). Same behaviour, no compile-time enforcement.
+- Use the HTML `inert` attribute to block UI interaction for read-only roles.
+- **TypeScript:** define roles as union type in `domain.ts`.
+- **JavaScript:** define roles as constants object in `domain.js`.
 
-### 7. Backend Integration Markers & Contract Sync
+### 7. Backend Integration Markers
 
 - Every API stub annotated with `// @backend` as shown in dimension 4.
-- Ensure annotations match the data shapes defined in `domain.ts` or `domain.js` — what the stub returns must match what the file describes.
-- After refactoring, generate `BACKEND_CONTRACT.md` using the schema in [references/backend-contract-template.md](references/backend-contract-template.md).
+- Annotations must match data shapes in `domain.ts`/`domain.js`.
+- The annotations live in the code — a developer reading `api.ts`/`api.js` can see every endpoint they need to build.
 
 ## UI Quality & Performance
 
 ### 8. Component Library Compliance
 
-- **Actively scan for reinvented UI primitives** (dropdowns, modals, tooltips, tabs, popovers, date pickers, checkboxes, radios, select menus). Do not passively check whether existing ones are compliant — search for components that should be replaced but haven't been. Run the grep patterns from audit-checklist.md. A god-component almost certainly contains inline primitives.
-- Replace reinvented primitives with **shadcn/ui** or **Radix UI** equivalents, preserving the designer's exact visual styling.
-- Genuine custom components (novel interactions, product-specific visualizations) are preserved and hardened — not replaced.
-- Flag any replaced component in `BACKEND_CONTRACT.md` so the developer knows which primitives have clean swap surfaces.
-- **Do not auto-pass this dimension.** If no scan was performed, mark it as unevaluated, not passing.
+- **Actively scan** for reinvented UI primitives (dropdowns, modals, tooltips, tabs, popovers, date pickers, select menus).
+- Replace with **shadcn/ui** or **Radix UI** equivalents, preserving visual styling.
+- Preserve genuine custom components.
+- **Do not auto-pass this dimension.** If no scan was performed, mark as unevaluated.
 
-**Mandatory audit output — two lists (non-negotiable):**
+### 9. Design Token Compliance
 
-Every audit and refactor report must include both lists below. Missing either list = dimension 8 incomplete.
+Covers **colors, spacing, sizing, typography, and all visual values.** Not just colors.
 
-```markdown
-### Dimension 8 — Reinvented Primitives (replace with shadcn/Radix)
-| Component | File:Line | Suggested Replacement |
-|-----------|-----------|----------------------|
-| CustomDropdown | `src/components/Header.tsx:42` | shadcn `<Select />` |
-
-### Dimension 8 — Genuine Custom (preserve and harden)
-| Component | File:Line | Why Custom |
-|-----------|-----------|------------|
-| TimelineDragReorder | `src/components/Timeline.tsx:1` | Product-specific drag interaction |
-```
-
-If a list is empty, write explicitly: `None found after active scan.` Do not omit the section.
-
-### 9. CSS Token & Design System Compliance
-
-- Map **colors, spacing, sizing, and typography** to semantic CSS variables (e.g., `--color-status-danger`, `--spacing-container`, `--font-size-body`, `--size-icon-sm`). No hardcoded design values remaining after refactor.
-- **Color violations:** hardcoded hex, `rgb()`, `hsl()`, Tailwind arbitrary colors (`bg-[#f3f4f6]`)
-- **Spacing violations:** raw pixel padding/margin/gap in inline styles (`padding: 17px`), or Tailwind arbitrary spacing (`p-[17px]`, `m-[13px]`, `gap-[22px]`)
-- **Sizing violations:** raw pixel width/height in inline styles or arbitrary Tailwind (`w-[243px]`, `h-[312px]`)
-- **Typography violations:** hardcoded `fontSize`, `lineHeight`, `letterSpacing`, `fontWeight` in inline styles or arbitrary Tailwind (`text-[13px]`, `leading-[1.37]`)
-- **Defensive Tailwind Snapping:** Scan for Tailwind arbitrary bracket values. Snap to nearest standard Tailwind scale only if the visual shift is less than `1px`. Otherwise extract to a semantic CSS variable.
+- Map all colors to semantic CSS variables (`--color-status-danger`). No hardcoded hex codes.
+- Map spacing and sizing to design tokens or standard Tailwind scale. No raw pixel values in inline styles.
+- **Scan for all hardcoded visual values:**
+  - Hex colors in JSX and CSS
+  - Tailwind arbitrary bracket values (`p-[17px]`, `bg-[#f3f4f6]`, `w-[243px]`, `gap-[12px]`)
+  - Inline style raw pixels (`style={{ padding: '12px', fontSize: '14px', width: '240px' }}`)
+  - CSS file raw pixels (`margin: 16px`, `font-size: 13px`, `border-radius: 8px`)
+- **Defensive Tailwind Snapping:** Snap arbitrary values to nearest standard Tailwind scale only if visual shift < 1px. Otherwise extract to a semantic CSS variable.
 
 ### 10. Destructive Action Safety
 
-- Gate all deletions, resets, or irreversible state changes behind a reusable `ConfirmDialog` or "Toast with Undo" pattern. No immediate destructive actions.
+- Gate all deletions, resets, or irreversible state changes behind `ConfirmDialog` or "Toast with Undo."
 
 ### 11. Routing & Navigation (`react-router`)
 
-- Replace conditional page rendering (`if (page === 'home')`) with declarative `react-router-dom` paths.
-- Implement lazy loading (`React.lazy`) for heavy route-level containers.
-- Set up Route Guards (`<ProtectedRoute />`) for authenticated/role-based views.
+- Replace conditional page rendering with declarative `react-router-dom` paths.
+- Implement lazy loading (`React.lazy`) for heavy route containers.
+- Set up Route Guards for authenticated/role-based views.
 
-### 12. Component Performance (Memoization)
+### 12. Component Performance
 
-- `useMemo` for expensive client-side filtering, sorting, or calculations.
-- `useCallback` for event handlers passed to child components.
-- `React.memo` on heavy list items, cards, or custom data grid rows.
+- `useMemo` for expensive filtering, sorting, calculations.
+- `useCallback` for event handlers passed to children.
+- `React.memo` on heavy list items, cards, or data grid rows.
 
-## Robustness & Typing
+## Robustness & Production Readiness
 
 ### 13. Accessibility (a11y) Baseline
 
-- Eliminate "div soup." Enforce semantic HTML5 landmarks (`<nav>`, `<main>`, `<header>`, `<button>`, `<aside>`).
-- Interactive elements must have readable `aria-label` or `aria-labelledby` attributes.
-- Keyboard focus navigation: proper `tabIndex`, visible focus states, focus trapping in modal dialogs.
-- `aria-live` regions for dynamic real-time updates.
-- **Note:** Replacing custom primitives with shadcn/Radix automatically resolves most a11y gaps for those components.
+- Eliminate "div soup." Use semantic HTML5 (`<nav>`, `<main>`, `<header>`, `<button>`, `<aside>`).
+- Interactive elements need `aria-label` or `aria-labelledby`.
+- Keyboard focus: `tabIndex`, visible focus states, focus trapping in modals.
+- `aria-live` regions for dynamic updates.
 
 ### 14. Linting, Formatting & Code Quality
 
-**If React + TypeScript:**
-- Eradicate `any` types. Convert legacy JSDoc typings into strict TypeScript interfaces.
-- Organize imports: external libraries → internal components/hooks → styles/assets.
-- Strict ESLint/Prettier compliance: no unused variables, exhaustive `useEffect` dependencies.
+**If TypeScript:**
+- Eradicate `any` types. Strict interfaces.
+- Organized imports. ESLint/Prettier compliance.
 
-**If React + JavaScript:**
-- Add or enforce PropTypes on all components so developers understand what each component expects.
-- Ensure JSDoc comments exist on all functions in `api.js` and `domain.js`.
-- Organize imports: external libraries → internal components/hooks → styles/assets.
-- ESLint/Prettier compliance: no unused variables, exhaustive `useEffect` dependencies.
-- This is fully valid for production handoff. TypeScript is not required.
+**If JavaScript:**
+- PropTypes on all components.
+- JSDoc on all functions in `api.js` and `domain.js`.
+- Organized imports. ESLint/Prettier compliance.
 
-### 15. Error Boundaries & Resilience
+### 15. Error Boundaries & Component Resilience
 
-- Wrap major route views in React Error Boundaries.
-- Route async failures through a global Toast/Snackbar notification channel.
-- Loading Skeletons or inline spinners for all async data states.
+**Route-level:**
+- Wrap major views in React Error Boundaries.
+- Global Toast/Snackbar for async failures.
 
-## Hygiene, Testing & Handoff
+**Component-level (every data-consuming component must handle):**
+- **Loading state:** what the user sees while data loads (skeleton, spinner, or placeholder — not blank space)
+- **Error state:** what happens when the data call fails (fallback message — not a crash)
+- **Empty state:** what appears when there's no data (helpful message — not invisible component)
 
 ### 16. QA & Test Selectors
 
-- Inject `data-testid` attributes on all primary interactive elements, form controls, and major layout sections.
+- `data-testid` on all primary interactive elements, form controls, and major layout sections.
 
 ### 17. Dependency & Environment Hygiene
 
-- Clean up unused packages from `package.json`. Pin critical dependency versions.
-- Provide a `.env.example` with all required environment variables stubbed out.
+- Clean unused packages. Pin critical dependency versions.
+- Provide `.env.example` with all required environment variables stubbed.
 
 ### 18. File Hygiene & Icon Consolidation
 
-- Delete orphaned files, unused imports, and dead utility blocks.
-- **SVG Icon Extraction:** Extract inline SVG paths over 10 lines into separate icon files or map to `lucide-react`.
+- Delete orphaned files, unused imports, dead code.
+- Extract inline SVGs over 10 lines into icon files or `lucide-react`.
+
+### 19. Component Production Readiness (NEW)
+
+This dimension checks whether components survive real-world conditions, not just the prototype's mock data.
+
+**Data resilience:**
+- **Null/undefined fields:** component renders gracefully when a data field is missing, not crashes
+- **Text overflow:** long names, descriptions, URLs — truncated or wrapped, not breaking the layout
+- **Variable data lengths:** component works with 0 items, 1 item, 500 items — not just the 3 mock items
+- **Special characters:** component doesn't break on quotes, ampersands, unicode
+
+**Reusability:**
+- **No hardcoded content:** labels, placeholders, error messages, and URLs passed as props — not baked into the component
+- **Prop interface clarity:** PropTypes (JS) or TypeScript interfaces (TS) define what the component accepts. A developer should understand the component's API without reading its internals.
+- **Style isolation:** component works regardless of parent context. Doesn't depend on a specific wrapper's width or CSS for its own layout.
+
+**Responsive basics:**
+- Component doesn't break at common viewport widths (mobile, tablet, desktop)
+- No fixed pixel widths that prevent the component from adapting
+- If responsive behavior is explicitly out of scope for the project, note it and move on
+
+**In audit mode:** for each major component, check the data resilience items. Flag any component that would crash or visually break with null data, empty arrays, or long strings.
 
 ---
 
 # Next.js Dimension Overrides
 
-When the stack is Next.js, these dimensions replace or extend their standard counterparts. All other dimensions apply unchanged.
+When the stack is Next.js, these replace their standard counterparts. All other dimensions apply unchanged.
 
 ### 5. State Management (Next.js)
-Same as standard, plus one additional check: flag any `useState`, `useContext`, or `useReducer` used inside a Server Component — state hooks only work in Client Components. Any file using them must have `"use client"` at the top. If it doesn't, flag it plainly:
-> "This file is managing interactive state but isn't marked as a client component — the developer will need to fix this before it works."
 
-### 10. Lazy Loading (Next.js)
-`React.lazy` is not needed — Next.js handles code splitting automatically per page. Instead, check that heavy components (maps, charts, rich text editors) use `dynamic()` from `next/dynamic` with `{ ssr: false }` where appropriate. Flag any `React.lazy` usage as unnecessary.
+Same as standard, plus: flag any `useState`, `useContext`, or `useReducer` inside a Server Component. State hooks only work in Client Components — files using them need `"use client"` at the top.
 
-### 11. Routing & Navigation (Next.js)
-`react-router-dom` is irrelevant. Next.js uses file-based routing. Check:
-- Pages live in `/app` (App Router) or `/pages` (Pages Router) — not conditionally rendered in a root component
-- Dynamic routes use correct `[param]` and `[[...slug]]` conventions
-- Route guards are implemented via `middleware.ts` at the project root, not `<ProtectedRoute />` wrappers
-- If the project still uses conditional rendering (`if (page === 'home')`) instead of proper file-based routes, flag it as a handoff issue
+### 11. Routing, Navigation & Code Splitting (Next.js)
+
+`react-router-dom` is irrelevant. Check:
+
+- Pages in `/app` (App Router) or `/pages` (Pages Router)
+- Dynamic routes use `[param]` and `[[...slug]]` conventions
+- Route guards via `middleware.ts`, not `<ProtectedRoute />` wrappers
+- No conditional rendering (`if (page === 'home')`) instead of file-based routes
+- Heavy components use `dynamic()` from `next/dynamic` with `{ ssr: false }` where appropriate — not `React.lazy`
 
 ### 15. Error Boundaries & Resilience (Next.js)
-Instead of manually wrapping routes in Error Boundary components, check for Next.js built-in error files:
-- `error.tsx` exists at the appropriate layout level to catch runtime errors
-- `not-found.tsx` exists for 404 handling
-- `loading.tsx` exists for async suspense states
-If these files are missing, flag them as needed — they replace the manual Error Boundary pattern.
+Check for built-in error files instead of manual Error Boundaries:
+- `error.tsx` at appropriate layout levels
+- `not-found.tsx` for 404 handling
+- `loading.tsx` for suspense states
+Component-level resilience checks (loading/error/empty states) still apply.
 
-### 4 & 7. API Stubs & Backend Markers (Next.js — note only)
-The `api.ts` stub pattern still applies for frontend data consumption. However, `// @backend` annotations should specify whether the endpoint is expected as a Next.js API route (`/app/api/resource/route.ts`) or an external backend service. Note this distinction in `BACKEND_CONTRACT.md`.
+### 4 & 7. API Stubs & Backend Markers (Next.js)
+The `api.ts`/`api.js` stub pattern still applies. `// @backend` annotations should note whether endpoints are expected as Next.js API routes (`/app/api/resource/route.ts`) or external services.
 
 ---
 
 # Common Vibecode Smells
 
-| Smell | Direct Production Fix |
+| Smell | Fix |
 | :--- | :--- |
-| **Reinvented UI primitives** | Hand-rolled dropdown, modal, tooltip. Replace with shadcn/Radix equivalent, preserve styling. |
-| **Duplicated component variants** | Same button/card built 5 different ways. Consolidate into one shared primitive. |
-| **Direct mock data imports in components** | `import { MOCK_DATA }` inside a UI component. Move all data through `api.ts` or `api.js` stubs. |
-| **Third-party components fetching directly** | Map loading GeoJSON, chart fetching CSV. All external data must flow through `api.ts`/`api.js`, no exceptions. |
-| **Contract-to-Runtime Drift** | Align `domain.ts`/`domain.js` definitions with actual UI runtime usages. |
-| **Single 1000+ line components** | Split into container + presentational children while guarding the DOM tree. |
-| **Buggy vibe-coded interactions** | Flickering hovers, dropping animations. Flag to developer rather than silently preserve. |
-| **"Mostly" CSS variables** | Hardcoded colors, spacing, sizing, or typography in Tailwind classes or inline styles. Swap with design tokens. |
-| **Cascading state chains** | 5+ independent `useState` hooks. Move to context or a consolidated reducer. |
-| **Raw, multi-line SVGs in JSX** | Extract to standalone icon files or `lucide-react`. |
-
----
-
-# Severity Scale
-
-Every violation must include a severity and a one-line justification. Use this scale consistently:
-
-| Severity | When to use | Examples |
-|----------|-------------|----------|
-| **High** | Blocks backend handoff or will cause dev rework/integration failure | Direct `fetch()` in components (dim 4); no `domain.ts`/`domain.js`; god-component 800+ lines; missing `api.ts` stubs; conditional routing instead of router |
-| **Medium** | Handoff possible but dev friction, maintenance risk, or partial contract drift | Duplicated button variants (1b); hardcoded spacing/typography (9); missing `@backend` on one stub; 5+ `useState` in one file; reinvented modal without Radix |
-| **Low** | Polish, hygiene, or non-blocking quality gaps | Missing `data-testid` on secondary elements; unused imports; console.log; arbitrary Tailwind that could snap to token with <1px shift |
-
-When assigning severity, state **why** in the Issue column: e.g., "High — developer cannot swap API layer without touching 12 components."
+| **Reinvented UI primitives** | Replace with shadcn/Radix, preserve styling |
+| **Duplicated component variants** | Consolidate into one shared primitive |
+| **Copy-pasted layouts** | Extract repeated page sections into shared components |
+| **Direct mock data in components** | Route all data through `api.ts`/`api.js` stubs |
+| **Third-party components fetching directly** | Maps, charts fetching their own data — route through API stubs |
+| **No empty/error/loading states** | Component shows blank or crashes with no data — add fallbacks |
+| **Hardcoded content in components** | Labels, placeholders baked in — pass as props instead |
+| **Hardcoded visual values** | Raw pixels, hex colors in inline styles or arbitrary Tailwind — use design tokens |
+| **God-components (400+ lines)** | Split into container + children, guard the DOM hierarchy |
+| **Cascading useState chains** | 5+ hooks — consolidate into reducer or context |
+| **Components crash on null data** | Add defensive checks for missing fields |
+| **Fixed widths breaking layout** | Use relative sizing or constrained max-widths |
+| **Raw multi-line SVGs in JSX** | Extract to icon files or `lucide-react` |
 
 ---
 
@@ -441,31 +391,31 @@ When assigning severity, state **why** in the Issue column: e.g., "High — deve
 
 ## Audit mode
 
-Listen for commands starting with `/vibe-to-prod audit`. Report violations without modifying files.
+Listen for `/vibe-to-prod audit`. Report violations without modifying files.
 
-Output format must strictly follow [references/audit-checklist.md](references/audit-checklist.md).
+Output format must follow [references/audit-checklist.md](references/audit-checklist.md).
 
 **Audit rules:**
 
-0. **Plain language first.** Apply mandatory language enforcement from Step 0 before outputting the report.
+0. **Plain language first.** Apply the mandatory tone rule before outputting any finding.
 
-1. **Lead with stack detection.** Identify the stack first (React/TS, React/JS, Next.js, or unsupported). If unsupported, stop and follow the redirection response in Step 0. If JavaScript, proceed with all dimensions — do not flag as a blocker. If Next.js, apply the dimension overrides.
+1. **Lead with stack detection.** Identify the stack (React/TS, React/JS, Next.js, or unsupported). If unsupported, stop and follow Step 0 redirection. If Next.js, apply overrides.
 
-2. **Show evidence, not just conclusions.** For every dimension marked failing, include the specific file path, **line number**, or grep output that proves the violation. **Ban duplicate citations:** citing the same file twice as two different evidence entries is padding. Each citation must be a distinct `path:line` or distinct grep match. If two violations share a file, cite different line numbers and explain why each is a separate finding.
+2. **Show evidence, not conclusions.** Every failing dimension must cite specific file paths and line references. Citing the same file twice as two different sources is padding — each citation must be a distinct finding. When citing the same file for multiple issues, include distinct line numbers and describe what's different.
 
-3. **Run the grep patterns from audit-checklist.md.** These are required evidence-gathering steps, not optional. Include the output (or a summary of the output) in the audit report. If the environment doesn't support shell execution, run equivalent regex searches and show results.
+3. **Run the grep patterns from audit-checklist.md.** Required, not optional. Include output summaries in the report.
 
-4. **Flag interactions from code — distinct line references required.** You cannot test animations visually in audit mode. Scan for: Framer Motion configs with extreme spring tensions, CSS transitions with 0ms durations, hover handlers that toggle state without debounce, animation components that depend on frequently-changing state values. Each flagged item must include **`file:line`**, the code pattern found, and your reasoning. Never cite the same `file:line` twice without explaining why it represents two separate issues. If nothing is found, write: `None found after code scan.` — do not skip the section.
+4. **Flag interactions from code.** Scan for extreme spring configs, zero-duration transitions, undebounced hover handlers, setTimeout-driven visuals. List findings with file + line, or explicitly state "No interaction smells found." Never skip this section.
 
-5. **Design fidelity in audit mode — no fake "AT RISK".** Do not claim layout or animation fidelity is "AT RISK" without visual testing — you have no browser. Instead report: **"Not evaluated in audit mode (code-only scan). Refactor mode preserves design intent per Core Constraints."** Only flag concrete code-level risks (e.g., DOM wrapper changes proposed, animation config extremes).
+5. **Dimension 4 is all-or-nothing.** Any component fetching directly = fail.
 
-6. **Dimension 1 and 1b are separate rows.** Never merge reusability into dimension 1. Always report 1b with its own pass/fail and evidence.
+6. **Dimension 8 requires active scanning.** Search for reinvented primitives or mark as unevaluated.
 
-7. **Dimension 4 is all-or-nothing.** If any component — including maps, charts, or third-party visual integrations — fetches data directly instead of through `api.ts`/`api.js`, dimension 4 fails. Do not mark it as partially passing.
+7. **Dimension 19 requires spot-checking.** Pick 3-5 major data-consuming components and check: what happens with null data? Empty arrays? Long strings? Report findings per component.
 
-8. **Dimension 8 requires both lists.** Reinvented primitives list AND genuine custom list — see mandatory format in dimension 8. Missing either = incomplete.
+8. **Every finding must include a severity (High/Medium/Low) with justification.** Not just the label — one sentence explaining why.
 
-9. **Apply severity scale.** Every violation row includes High/Medium/Low with justification.
+9. **Design fidelity note:** In audit mode, visual fidelity cannot be verified without running the app. State this once at the top: "Visual fidelity should be verified in the browser after any refactoring." Do not mark it as "AT RISK" — that implies something is wrong when nothing has been checked.
 
 ```
 /vibe-to-prod audit [file or directory]
@@ -473,7 +423,7 @@ Output format must strictly follow [references/audit-checklist.md](references/au
 
 ## Refactor mode (default)
 
-Execute a full 18-dimension pass over the targeted module. Refactor cleanly while preserving design intent. Generate or update `BACKEND_CONTRACT.md` using [references/backend-contract-template.md](references/backend-contract-template.md).
+Full 19-dimension pass. Refactor while preserving design intent.
 
 ```
 /vibe-to-prod refactor [file or directory]
@@ -481,7 +431,7 @@ Execute a full 18-dimension pass over the targeted module. Refactor cleanly whil
 
 ## Quick mode
 
-Fast-track structure + types + stubs only. Applies dimensions: 1, 1b, 2, 3, 4, 7, 17, 18.
+Structure + types + stubs only. Dimensions: 1, 2, 3, 4, 7, 17, 18.
 
 ```
 /vibe-to-prod quick [file or directory]
@@ -489,21 +439,21 @@ Fast-track structure + types + stubs only. Applies dimensions: 1, 1b, 2, 3, 4, 7
 
 ## Scope inference
 
-If a user request targets a specific concern ("just fix the state management", "only audit the components"), apply only the relevant dimensions. Do not run a full 18-dimension pass on a scoped request. State which dimensions you're applying at the start of your response.
+If the user targets a specific concern ("just fix the state management"), apply only relevant dimensions. State which ones at the start.
 
 ---
 
-# Target File Layout (Handoff-Ready)
+# Target File Layout
 
 **React + TypeScript (default):**
 
 ```
 src/
 ├── data/               # Extracted mock/seed data (never imported directly by components)
-├── domain.ts           # Canonical business types (API contracts)
-├── api.ts              # Typed async stubs with @backend annotations
+├── domain.ts           # Canonical data types
+├── api.ts              # Async stubs with @backend annotations
 ├── components/
-│   ├── ui/             # Shared reusable primitives (one per pattern — Button, Card, Badge)
+│   ├── ui/             # Shared reusable primitives (one per pattern)
 │   ├── icons/          # Extracted SVG icon components
 │   └── ConfirmDialog.tsx
 ├── contexts/           # One isolated context provider per domain
@@ -512,9 +462,8 @@ src/
 ├── pages/              # Route-level page components
 └── utils/              # Helpers, formatters
 .env.example            # Required environment variables (stubbed)
-BACKEND_CONTRACT.md     # Generated integration doc for dev team
 ```
 
-**React + JavaScript:** same structure; use `domain.js` and `api.js` instead of `.ts`.
+**React + JavaScript:** same structure; use `domain.js` and `api.js`.
 
-**Next.js:** use `app/` (App Router) or `pages/` (Pages Router) instead of `routes/` + conditional rendering; add `middleware.ts` for route guards; add `error.tsx`, `loading.tsx`, and `not-found.tsx` where appropriate.
+**Next.js:** use `app/` or `pages/` for routing; add `middleware.ts`, `error.tsx`, `loading.tsx`, and `not-found.tsx` where appropriate.
