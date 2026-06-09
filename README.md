@@ -34,13 +34,7 @@ See [`vibe-to-prod/SKILL.md`](vibe-to-prod/SKILL.md) for the full specification.
 ## Install
 
 ```bash
-npx skills add manish-uxai/dev-handoff -g -y
-```
-
-Project-only:
-
-```bash
-npx skills add manish-uxai/dev-handoff -y
+npx skills add manish-uxai/vibe-to-prod -y
 ```
 
 ### PromptScript warning
@@ -48,7 +42,7 @@ npx skills add manish-uxai/dev-handoff -y
 If you see `PromptScript does not support global skill installation` — skill still installed to `~/.agents/skills/vibe-to-prod`. Safe to ignore, or use:
 
 ```bash
-npx skills add manish-uxai/dev-handoff -g -y -a universal
+npx skills add manish-uxai/vibe-to-prod -g -y -a universal
 ```
 
 ## Manual install
@@ -65,7 +59,7 @@ Copy `vibe-to-prod/` to your agent skills path. **Directory name must match `nam
 ## Repository structure
 
 ```
-dev-handoff/                  # GitHub repo name (unchanged)
+vibe-to-prod/                  # GitHub repo name (unchanged)
 ├── README.md
 ├── LICENSE
 └── vibe-to-prod/             # Skill directory (matches frontmatter name)
