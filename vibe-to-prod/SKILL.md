@@ -1,11 +1,11 @@
 ---
 name: vibe-to-prod
-description: Transforms high-fidelity designer-built React/TS prototypes into production-ready, frontend-only codebases. Also handles JavaScript/JSX codebases by flagging TypeScript migration as a prerequisite. Use this skill when a designer wants to hand off their coded prototype to a frontend developer, when someone wants to make their vibe-coded UI "dev-ready", when asked to audit or refactor a React prototype for backend integration, or when the goal is to eliminate UI re-development by treating the prototype as the final production frontend. Triggers on phrases like "handoff to dev", "make this production ready", "clean up my prototype", "prep for backend integration", "frontend handoff", "vibe to prod", or any mention of sharing a codebase with a frontend developer.
+description: Transforms high-fidelity designer-built React or Next.js prototypes into production-ready, frontend-only codebases. Detects the project stack first and either proceeds, adapts, or guides the user to the right path. Use this skill when a designer wants to hand off their coded prototype to a frontend developer, when someone wants to make their vibe-coded UI "dev-ready", when asked to audit or refactor a prototype for backend integration, or when the goal is to eliminate UI re-development by treating the prototype as the final production frontend. Triggers on phrases like "handoff to dev", "make this production ready", "clean up my prototype", "prep for backend integration", "frontend handoff", "vibe to prod", or any mention of sharing a codebase with a frontend developer.
 license: MIT
-compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Requires React frontend projects (TypeScript preferred; JavaScript codebases will be flagged for migration).
+compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Supports React and Next.js projects. Other stacks trigger guided redirection.
 metadata:
   author: vibe-to-prod
-  version: "3.1.0"
+  version: "3.2.0"
   framework: 18-dimension-handoff
 ---
 
@@ -21,13 +21,69 @@ You are not "cleaning up a throwaway demo." You are making the invisible infrast
 
 ---
 
-# Pre-Audit: Language Check
+# Step 0: Stack Detection
 
-**Before running any dimension, check the file extensions in the codebase.**
+**Before anything else, identify what the user has built.** Do not assume React. Check `package.json`, file extensions, and folder structure. Then follow the response path below.
 
-If the project uses `.js` / `.jsx` instead of `.ts` / `.tsx`, flag this immediately at the top of the audit output as a **dimension 14 blocker**. A JavaScript codebase means every type-dependent dimension (3, 4, 6, 7, 14) is structurally compromised — there are no enforceable TypeScript interfaces, no strict domain contracts, and no type-safe API stubs.
+---
 
-The audit should still proceed across all dimensions, but the report must lead with this finding and recommend TypeScript migration as a prerequisite to full handoff readiness. Do not bury it as a sub-point under dimension 14.
+## React (with TypeScript) — `.tsx` / `.ts`
+Proceed directly with all 18 dimensions. This is the ideal path.
+
+---
+
+## React (with JavaScript) — `.jsx` / `.js`
+Fully supported. Proceed directly with all 18 dimensions — the skill automatically applies the JavaScript-appropriate approach for each one. No warnings, no recommendations unless the user asks.
+
+---
+
+## Next.js — `next.config.*` present or `next` in `package.json`
+Proceed with all 18 dimensions, but apply the Next.js overrides in the section below. Say something like:
+> "Your project is built with Next.js — great choice. This skill works well with Next.js. A few things work differently here so I'll adapt as we go."
+
+---
+
+## Plain HTML / CSS / JS — no `package.json`, or only `.html` / `.css` files
+Do not proceed with the audit. Explain clearly and offer a path forward:
+
+> "Your project is built with plain HTML and CSS, which is a great way to prototype quickly. This skill is designed for React-based projects — here's why that matters for your handoff:
+>
+> Right now, a developer would need to manually convert your HTML into components, set up routing, connect APIs, and build out all the interactions from scratch. That's the exact problem this skill is designed to avoid.
+>
+> If we convert your prototype to React first, your developer gets everything structured and ready — components, data flow, API connections — and can skip straight to integration. That's roughly 4-6 weeks of work they won't have to do.
+>
+> Would you like me to help convert your HTML prototype to React so we can make it fully handoff-ready?"
+
+---
+
+## Vue.js, Svelte, Angular, or other frameworks
+Do not proceed with the audit. Explain clearly:
+
+> "Your project is built with [detected framework]. This skill is currently built around React and Next.js — the handoff pipeline, component patterns, and API contract structure are all React-specific, so running it on a [framework] project would give you inaccurate results.
+>
+> You have two options:
+> 1. I can help you migrate this to React so the full handoff pipeline works
+> 2. We can do a manual review of your project structure and I can give you general handoff advice, though it won't be as precise
+>
+> Which would work better for you?"
+
+---
+
+## Language and tone rule (applies to all stack responses)
+
+**Always communicate in plain, friendly language.** This skill is used by designers and PMs, not just developers. Avoid technical jargon unless the user is clearly technical. Translate everything:
+
+| Instead of this | Say this |
+| :--- | :--- |
+| "dimension 14 blocker" | "there's one thing worth fixing before handoff" |
+| "JSDoc typings" | "an older way of describing your data" |
+| "reducer isolation" | "a cleaner way to manage all your app's moving parts" |
+| "TypeScript interface" | "a description of what your data looks like" |
+| "god-component" | "one file that's doing too many things at once" |
+| "API contract stubs" | "placeholder connections where real data will flow in" |
+| "hardcoded hex values" | "colors written directly into the code instead of using your design system" |
+
+Read the user's messages for cues. If they use terms like "component", "props", or "state" correctly, you can be more technical. If they say "my app" or "my design", stay plain.
 
 ---
 
@@ -101,29 +157,68 @@ When the developer connects real APIs, they change only the function body inside
 - Move all `MOCK_` arrays, seed data, and hardcoded lists to `/src/data/`. No inline arrays in UI components.
 - Preserve the exact data shape to prevent rendering errors or layout discrepancies.
 
-### 3. Canonical Domain Types (`domain.ts`)
+### 3. Canonical Domain Types (`domain.ts` / `domain.js`)
 
-- Establish a single source of truth for business concepts. Every entity the UI renders must map to a strict TypeScript interface.
-- Developers use these types to generate or validate backend API contracts.
+The goal is a single file that describes what all your data looks like — so a developer knows exactly what to expect from every API response without reading through the whole codebase.
 
-### 4. API Contract Stubs (`api.ts`)
-
-- **Hard rule:** No component imports mock data directly. All data flows through typed async functions in `api.ts`.
-- Implement typed async functions simulating latency (`await delay(300)`) for all data dependencies.
-- **Strict Envelope Rule:** Mock responses must use realistic enterprise response envelopes (e.g., `{ data: T, meta: { total, page } }`) rather than flat arrays.
-- **Third-Party Integrations:** Maps, charts, heatmaps — never fetch internally. Consume data via API stubs passed through state/context.
-- **`// @backend` annotation format** — every stub must carry this annotation:
+**If React + TypeScript:**
+Create `domain.ts` with strict TypeScript interfaces for every entity the UI renders. Developers use these to validate backend API contracts at compile time.
 
 ```ts
-// @backend POST /api/studies/:id/assessments
-// Auth: Bearer token (JWT)
-// Payload: { assessmentId: string; visitId: string; required: boolean }
-// Response: { data: Assessment; meta: { updatedAt: string } }
-export async function createAssessment(payload: CreateAssessmentPayload): Promise<ApiResponse<Assessment>> {
-  await delay(300);
-  return { data: MOCK_ASSESSMENTS[0], meta: { updatedAt: new Date().toISOString() } };
+export interface Patient {
+  id: string;
+  name: string;
+  status: 'active' | 'inactive';
 }
 ```
+
+**If React + JavaScript:**
+Create `domain.js` with JSDoc type definitions for every entity. Not as strict as TypeScript, but gives the developer a clear map of the data structure and enables IDE autocomplete.
+
+```js
+/**
+ * @typedef {Object} Patient
+ * @property {string} id
+ * @property {string} name
+ * @property {'active' | 'inactive'} status
+ */
+```
+
+In both cases: one file, one source of truth, no duplicated or conflicting type definitions across the codebase.
+
+### 4. API Contract Stubs (`api.ts` / `api.js`)
+
+- **Hard rule:** No component imports mock data directly. All data flows through async functions in `api.ts` or `api.js`.
+- Implement async functions simulating latency (`await delay(300)`) for all data dependencies.
+- **Strict Envelope Rule:** Mock responses must use realistic response envelopes (e.g., `{ data, meta: { total, page } }`) rather than flat arrays.
+- **Third-Party Integrations:** Maps, charts, heatmaps — never fetch internally. Consume data via API stubs passed through state/context.
+- Every stub must carry a `// @backend` annotation.
+
+**If React + TypeScript:**
+```ts
+// @backend POST /api/patients
+// Auth: Bearer token (JWT)
+// Payload: { name: string; status: 'active' | 'inactive' }
+// Response: { data: Patient; meta: { createdAt: string } }
+export async function createPatient(payload: CreatePatientPayload): Promise<ApiResponse<Patient>> {
+  await delay(300);
+  return { data: MOCK_PATIENTS[0], meta: { createdAt: new Date().toISOString() } };
+}
+```
+
+**If React + JavaScript:**
+```js
+// @backend POST /api/patients
+// Auth: Bearer token (JWT)
+// Payload: { name: string, status: 'active' | 'inactive' }
+// Response: { data: Patient, meta: { createdAt: string } }
+export async function createPatient(payload) {
+  await delay(300);
+  return { data: MOCK_PATIENTS[0], meta: { createdAt: new Date().toISOString() } };
+}
+```
+
+The structure, annotations, and envelope shape are identical. The only difference is the absence of type annotations in the JS version.
 
 ## Backend Integration & State
 
@@ -135,12 +230,14 @@ export async function createAssessment(payload: CreateAssessmentPayload): Promis
 ### 6. Read-Only / Role-Based Access Control
 
 - Guarded setters must block data mutation. Use the HTML `inert` attribute to block UI interaction for read-only roles.
-- Define roles as a strict union type in `domain.ts`. Apply `inert={isReadOnly}` to interactive form containers to freeze modifications without altering styles.
+- Apply `inert={isReadOnly}` to interactive form containers to freeze modifications without altering styles.
+- **If TypeScript:** define roles as a strict union type in `domain.ts` (e.g., `type Role = 'admin' | 'viewer'`).
+- **If JavaScript:** define roles as a plain constants object in `domain.js` (e.g., `export const ROLES = { ADMIN: 'admin', VIEWER: 'viewer' }`). Same behaviour, no compile-time enforcement.
 
 ### 7. Backend Integration Markers & Contract Sync
 
 - Every API stub annotated with `// @backend` as shown in dimension 4.
-- Ensure annotations perfectly match types defined in `domain.ts` — zero contract-to-runtime drift.
+- Ensure annotations match the data shapes defined in `domain.ts` or `domain.js` — what the stub returns must match what the file describes.
 - After refactoring, generate `BACKEND_CONTRACT.md` using the schema in [references/backend-contract-template.md](references/backend-contract-template.md).
 
 ## UI Quality & Performance
@@ -185,11 +282,19 @@ export async function createAssessment(payload: CreateAssessmentPayload): Promis
 - `aria-live` regions for dynamic real-time updates.
 - **Note:** Replacing custom primitives with shadcn/Radix automatically resolves most a11y gaps for those components.
 
-### 14. Linting, Formatting & Strict Typing
+### 14. Linting, Formatting & Code Quality
 
+**If React + TypeScript:**
 - Eradicate `any` types. Convert legacy JSDoc typings into strict TypeScript interfaces.
 - Organize imports: external libraries → internal components/hooks → styles/assets.
 - Strict ESLint/Prettier compliance: no unused variables, exhaustive `useEffect` dependencies.
+
+**If React + JavaScript:**
+- Add or enforce PropTypes on all components so developers understand what each component expects.
+- Ensure JSDoc comments exist on all functions in `api.js` and `domain.js`.
+- Organize imports: external libraries → internal components/hooks → styles/assets.
+- ESLint/Prettier compliance: no unused variables, exhaustive `useEffect` dependencies.
+- This is fully valid for production handoff. TypeScript is not required.
 
 ### 15. Error Boundaries & Resilience
 
@@ -215,21 +320,50 @@ export async function createAssessment(payload: CreateAssessmentPayload): Promis
 
 ---
 
+# Next.js Dimension Overrides
+
+When the stack is Next.js, these dimensions replace or extend their standard counterparts. All other dimensions apply unchanged.
+
+### 5. State Management (Next.js)
+Same as standard, plus one additional check: flag any `useState`, `useContext`, or `useReducer` used inside a Server Component — state hooks only work in Client Components. Any file using them must have `"use client"` at the top. If it doesn't, flag it plainly:
+> "This file is managing interactive state but isn't marked as a client component — the developer will need to fix this before it works."
+
+### 10. Lazy Loading (Next.js)
+`React.lazy` is not needed — Next.js handles code splitting automatically per page. Instead, check that heavy components (maps, charts, rich text editors) use `dynamic()` from `next/dynamic` with `{ ssr: false }` where appropriate. Flag any `React.lazy` usage as unnecessary.
+
+### 11. Routing & Navigation (Next.js)
+`react-router-dom` is irrelevant. Next.js uses file-based routing. Check:
+- Pages live in `/app` (App Router) or `/pages` (Pages Router) — not conditionally rendered in a root component
+- Dynamic routes use correct `[param]` and `[[...slug]]` conventions
+- Route guards are implemented via `middleware.ts` at the project root, not `<ProtectedRoute />` wrappers
+- If the project still uses conditional rendering (`if (page === 'home')`) instead of proper file-based routes, flag it as a handoff issue
+
+### 15. Error Boundaries & Resilience (Next.js)
+Instead of manually wrapping routes in Error Boundary components, check for Next.js built-in error files:
+- `error.tsx` exists at the appropriate layout level to catch runtime errors
+- `not-found.tsx` exists for 404 handling
+- `loading.tsx` exists for async suspense states
+If these files are missing, flag them as needed — they replace the manual Error Boundary pattern.
+
+### 4 & 7. API Stubs & Backend Markers (Next.js — note only)
+The `api.ts` stub pattern still applies for frontend data consumption. However, `// @backend` annotations should specify whether the endpoint is expected as a Next.js API route (`/app/api/resource/route.ts`) or an external backend service. Note this distinction in `BACKEND_CONTRACT.md`.
+
+---
+
 # Common Vibecode Smells
 
 | Smell | Direct Production Fix |
 | :--- | :--- |
 | **Reinvented UI primitives** | Hand-rolled dropdown, modal, tooltip. Replace with shadcn/Radix equivalent, preserve styling. |
 | **Duplicated component variants** | Same button/card built 5 different ways. Consolidate into one shared primitive. |
-| **Direct mock data imports in components** | `import { MOCK_DATA }` inside a UI component. Move all data through `api.ts` stubs. |
-| **Third-party components fetching directly** | Map loading GeoJSON, chart fetching CSV. All external data must flow through `api.ts`, no exceptions. |
-| **Contract-to-Runtime Drift** | Align `domain.ts` interfaces with actual UI runtime usages. |
+| **Direct mock data imports in components** | `import { MOCK_DATA }` inside a UI component. Move all data through `api.ts` or `api.js` stubs. |
+| **Third-party components fetching directly** | Map loading GeoJSON, chart fetching CSV. All external data must flow through `api.ts`/`api.js`, no exceptions. |
+| **Contract-to-Runtime Drift** | Align `domain.ts`/`domain.js` definitions with actual UI runtime usages. |
 | **Single 1000+ line components** | Split into container + presentational children while guarding the DOM tree. |
 | **Buggy vibe-coded interactions** | Flickering hovers, dropping animations. Flag to developer rather than silently preserve. |
 | **"Mostly" CSS variables** | Hardcoded colors or pixel metrics hiding in Tailwind classes. Swap with design tokens. |
 | **Cascading state chains** | 5+ independent `useState` hooks. Move to context or a consolidated reducer. |
 | **Raw, multi-line SVGs in JSX** | Extract to standalone icon files or `lucide-react`. |
-| **JavaScript instead of TypeScript** | `.js`/`.jsx` files instead of `.ts`/`.tsx`. Flag as dimension 14 blocker; recommend migration before full handoff. |
 
 ---
 
@@ -243,7 +377,7 @@ Output format must strictly follow [references/audit-checklist.md](references/au
 
 **Audit rules:**
 
-1. **Lead with the language check.** If the codebase is JavaScript, state it as a top-level blocker before listing dimension results.
+1. **Lead with stack detection.** Identify the stack first (React/TS, React/JS, Next.js, or unsupported). If unsupported, stop and follow the redirection response in Step 0. If JavaScript, proceed with all dimensions — do not flag as a blocker. If Next.js, apply the dimension overrides.
 
 2. **Show evidence, not just conclusions.** For every dimension marked failing, include the specific file path, line reference, or grep output that proves the violation. Citing the same file twice as two different sources is not evidence — it's padding. Each citation must point to a distinct location or finding.
 
@@ -283,6 +417,8 @@ If a user request targets a specific concern ("just fix the state management", "
 
 # Target File Layout (Handoff-Ready)
 
+**React + TypeScript (default):**
+
 ```
 src/
 ├── data/               # Extracted mock/seed data (never imported directly by components)
@@ -300,3 +436,7 @@ src/
 .env.example            # Required environment variables (stubbed)
 BACKEND_CONTRACT.md     # Generated integration doc for dev team
 ```
+
+**React + JavaScript:** same structure; use `domain.js` and `api.js` instead of `.ts`.
+
+**Next.js:** use `app/` (App Router) or `pages/` (Pages Router) instead of `routes/` + conditional rendering; add `middleware.ts` for route guards; add `error.tsx`, `loading.tsx`, and `not-found.tsx` where appropriate.
