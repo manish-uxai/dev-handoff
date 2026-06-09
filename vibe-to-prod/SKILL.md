@@ -1,11 +1,11 @@
 ---
-name: dev-handoff
-description: Transforms high-fidelity designer-built React/TS prototypes into production-ready, frontend-only codebases. Use this skill when a designer wants to hand off their coded prototype to a frontend developer, when someone wants to make their vibe-coded UI "dev-ready", when asked to audit or refactor a React/TS prototype for backend integration, or when the goal is to eliminate UI re-development by treating the prototype as the final production frontend. Triggers on phrases like "handoff to dev", "make this production ready", "clean up my prototype", "prep for backend integration", "frontend handoff", "Audit Codebase" or any mention of sharing a codebase with a frontend developer.
+name: vibe-to-prod
+description: Transforms high-fidelity designer-built React/TS prototypes into production-ready, frontend-only codebases. Also handles JavaScript/JSX codebases by flagging TypeScript migration as a prerequisite. Use this skill when a designer wants to hand off their coded prototype to a frontend developer, when someone wants to make their vibe-coded UI "dev-ready", when asked to audit or refactor a React prototype for backend integration, or when the goal is to eliminate UI re-development by treating the prototype as the final production frontend. Triggers on phrases like "handoff to dev", "make this production ready", "clean up my prototype", "prep for backend integration", "frontend handoff", "vibe to prod", or any mention of sharing a codebase with a frontend developer.
 license: MIT
-compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Requires React/TypeScript frontend projects.
+compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Requires React frontend projects (TypeScript preferred; JavaScript codebases will be flagged for migration).
 metadata:
-  author: dev-handoff
-  version: "3.0.0"
+  author: vibe-to-prod
+  version: "3.1.0"
   framework: 18-dimension-handoff
 ---
 
@@ -18,6 +18,16 @@ Traditional handoff is broken. A designer spends weeks — sometimes months — 
 The designer-builder has already developed the final, high-fidelity production UI. Your job is to treat this prototype codebase as the **actual production frontend** and harden the architecture underneath it — so a frontend engineer can open this project, plug in real APIs, and ship. Zero visual rewrites. Zero animation loss. Zero layout shifts. **1–2 months of UI development saved.**
 
 You are not "cleaning up a throwaway demo." You are making the invisible infrastructure production-ready while leaving everything the user can see and feel completely intact.
+
+---
+
+# Pre-Audit: Language Check
+
+**Before running any dimension, check the file extensions in the codebase.**
+
+If the project uses `.js` / `.jsx` instead of `.ts` / `.tsx`, flag this immediately at the top of the audit output as a **dimension 14 blocker**. A JavaScript codebase means every type-dependent dimension (3, 4, 6, 7, 14) is structurally compromised — there are no enforceable TypeScript interfaces, no strict domain contracts, and no type-safe API stubs.
+
+The audit should still proceed across all dimensions, but the report must lead with this finding and recommend TypeScript migration as a prerequisite to full handoff readiness. Do not bury it as a sub-point under dimension 14.
 
 ---
 
@@ -36,6 +46,13 @@ Concretely:
 - A layout that renders identically after a component split → safe to refactor
 
 **When a vibe-coded interaction appears buggy rather than intentional, surface it to the developer as a flag rather than silently preserving or silently fixing it.**
+
+**Code-detectable interaction smells (no browser required):**
+- Framer Motion springs with `stiffness` > 500 or `damping` < 5 (likely jank)
+- CSS transitions with `0ms` or `0s` durations (likely missing)
+- Hover/focus handlers toggling state without debounce (likely flicker)
+- Animation components depending on frequently re-rendering parent state (likely frame drops)
+- `setTimeout`/`setInterval` driving visual transitions instead of CSS or animation libraries
 
 ## 2. Component Replacement Strategy: Prefer Swappable Primitives
 
@@ -62,7 +79,9 @@ Vibe-coding produces duplicated components — the same button, card, badge, or 
 
 Components must never import mock data arrays directly. All data must flow through typed async functions in `api.ts`, even if those functions return mock data internally.
 
-**This is a hard rule, not guidance.** When the developer connects real APIs, they change only the function body inside `api.ts`. Every component that consumes that data updates automatically — no component-level changes required.
+**This is a hard rule, not guidance.** It applies to every component without exception — including maps fetching GeoJSON, charts loading CSV/JSON, tables pulling datasets, and any third-party visual integration that makes its own network requests. If a component calls `fetch()` or imports data directly, it violates this rule regardless of what it renders.
+
+When the developer connects real APIs, they change only the function body inside `api.ts`. Every component that consumes that data updates automatically — no component-level changes required.
 
 ---
 
@@ -75,7 +94,7 @@ Components must never import mock data arrays directly. All data must flow throu
 - Isolate stateful logic from presentational components. Enforce one domain context per provider.
 - Break massive "god-components" (400+ lines) into focused, presentational child modules.
 - **DOM Hierarchy Guard:** Preserve the exact DOM layout hierarchy when splitting components. Do not introduce redundant wrapper elements or alter CSS display properties (`flex`, `grid`) of parent-child relationships — this instantly breaks style containment and positioning.
-- **Reusability pass:** After splitting, scan for duplicated UI patterns across the codebase. Consolidate into shared primitives under `components/ui/`. One component per pattern.
+- **Reusability pass (separate audit step):** After evaluating the component split, independently scan the entire codebase for duplicated UI patterns — the same button, card, badge, input, or layout block rebuilt with slight variations across files. Consolidate into shared primitives under `components/ui/`. One component per pattern. In audit mode, list every duplicated pattern found with file locations. This is not optional — it is half of dimension 1.
 
 ### 2. Clean Data Extraction
 
@@ -126,12 +145,14 @@ export async function createAssessment(payload: CreateAssessmentPayload): Promis
 
 ## UI Quality & Performance
 
-### 8. Component Library Compliance (New)
+### 8. Component Library Compliance
 
-- **Audit all custom UI primitives** (dropdowns, modals, tooltips, tabs, popovers, date pickers, checkboxes, radios).
+- **Actively scan for reinvented UI primitives** (dropdowns, modals, tooltips, tabs, popovers, date pickers, checkboxes, radios, select menus). Do not passively check whether existing ones are compliant — search for components that should be replaced but haven't been. Run the grep pattern from audit-checklist.md. A god-component almost certainly contains inline primitives.
 - Replace reinvented primitives with **shadcn/ui** or **Radix UI** equivalents, preserving the designer's exact visual styling.
 - Genuine custom components (novel interactions, product-specific visualizations) are preserved and hardened — not replaced.
 - Flag any replaced component in `BACKEND_CONTRACT.md` so the developer knows which primitives have clean swap surfaces.
+- In audit mode, produce two lists: (a) reinvented primitives found with file locations, and (b) genuine custom components that should be preserved. If neither list is present, this dimension is incomplete.
+- **Do not auto-pass this dimension.** If no scan was performed, mark it as unevaluated, not passing.
 
 ### 9. CSS Token & Design System Compliance
 
@@ -201,12 +222,14 @@ export async function createAssessment(payload: CreateAssessmentPayload): Promis
 | **Reinvented UI primitives** | Hand-rolled dropdown, modal, tooltip. Replace with shadcn/Radix equivalent, preserve styling. |
 | **Duplicated component variants** | Same button/card built 5 different ways. Consolidate into one shared primitive. |
 | **Direct mock data imports in components** | `import { MOCK_DATA }` inside a UI component. Move all data through `api.ts` stubs. |
+| **Third-party components fetching directly** | Map loading GeoJSON, chart fetching CSV. All external data must flow through `api.ts`, no exceptions. |
 | **Contract-to-Runtime Drift** | Align `domain.ts` interfaces with actual UI runtime usages. |
 | **Single 1000+ line components** | Split into container + presentational children while guarding the DOM tree. |
 | **Buggy vibe-coded interactions** | Flickering hovers, dropping animations. Flag to developer rather than silently preserve. |
 | **"Mostly" CSS variables** | Hardcoded colors or pixel metrics hiding in Tailwind classes. Swap with design tokens. |
 | **Cascading state chains** | 5+ independent `useState` hooks. Move to context or a consolidated reducer. |
 | **Raw, multi-line SVGs in JSX** | Extract to standalone icon files or `lucide-react`. |
+| **JavaScript instead of TypeScript** | `.js`/`.jsx` files instead of `.ts`/`.tsx`. Flag as dimension 14 blocker; recommend migration before full handoff. |
 
 ---
 
@@ -214,12 +237,26 @@ export async function createAssessment(payload: CreateAssessmentPayload): Promis
 
 ## Audit mode
 
-Listen for commands starting with `/dev-handoff audit`. Report violations without modifying files.
+Listen for commands starting with `/vibe-to-prod audit`. Report violations without modifying files.
 
 Output format must strictly follow [references/audit-checklist.md](references/audit-checklist.md).
 
+**Audit rules:**
+
+1. **Lead with the language check.** If the codebase is JavaScript, state it as a top-level blocker before listing dimension results.
+
+2. **Show evidence, not just conclusions.** For every dimension marked failing, include the specific file path, line reference, or grep output that proves the violation. Citing the same file twice as two different sources is not evidence — it's padding. Each citation must point to a distinct location or finding.
+
+3. **Run the grep patterns from audit-checklist.md.** These are required evidence-gathering steps, not optional. Include the output (or a summary of the output) in the audit report. If the environment doesn't support shell execution, run equivalent regex searches and show results.
+
+4. **Flag interactions from code even without a browser.** You cannot test animations visually in audit mode, but you can scan for: Framer Motion configs with extreme spring tensions, CSS transitions with 0ms durations, hover handlers that toggle state without debounce, animation components that depend on frequently-changing state values. List anything suspicious in a "Flagged Interactions" section with file locations and your reasoning. If nothing is found, state that explicitly — do not skip the section.
+
+5. **Dimension 4 is all-or-nothing.** If any component — including maps, charts, or third-party visual integrations — fetches data directly instead of through `api.ts`, dimension 4 fails. Do not mark it as partially passing.
+
+6. **Dimension 8 requires active scanning.** Do not auto-pass component library compliance. Search for reinvented primitives, produce the two lists (reinvented vs genuine custom), or mark the dimension as unevaluated.
+
 ```
-/dev-handoff audit [file or directory]
+/vibe-to-prod audit [file or directory]
 ```
 
 ## Refactor mode (default)
@@ -227,7 +264,7 @@ Output format must strictly follow [references/audit-checklist.md](references/au
 Execute a full 18-dimension pass over the targeted module. Refactor cleanly while preserving design intent. Generate or update `BACKEND_CONTRACT.md` using [references/backend-contract-template.md](references/backend-contract-template.md).
 
 ```
-/dev-handoff refactor [file or directory]
+/vibe-to-prod refactor [file or directory]
 ```
 
 ## Quick mode
@@ -235,7 +272,7 @@ Execute a full 18-dimension pass over the targeted module. Refactor cleanly whil
 Fast-track structure + types + stubs only. Applies dimensions: 1, 2, 3, 4, 7, 17, 18.
 
 ```
-/dev-handoff quick [file or directory]
+/vibe-to-prod quick [file or directory]
 ```
 
 ## Scope inference
