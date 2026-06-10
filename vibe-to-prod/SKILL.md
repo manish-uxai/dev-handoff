@@ -5,8 +5,8 @@ license: MIT
 compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Supports React and Next.js projects (TypeScript or JavaScript). Other stacks trigger guided redirection.
 metadata:
   author: vibe-to-prod
-  version: "4.1.0"
-  framework: 19-dimension-handoff
+  version: "4.3.0"
+  framework: 20-dimension-handoff
 ---
 
 # Philosophy
@@ -28,23 +28,23 @@ The designer-builder has already developed the final production UI. Your job is 
 ---
 
 ## React (with TypeScript) — `.tsx` / `.ts`
-Proceed with all 19 dimensions.
+Proceed with all 20 dimensions.
 
 ---
 
 ## React (with JavaScript) — `.jsx` / `.js`
-Fully supported. Proceed with all 19 dimensions — the skill automatically applies the JavaScript-appropriate approach for each one. No warnings, no recommendations unless the user asks.
+Fully supported. Proceed with all 20 dimensions — the skill automatically applies the JavaScript-appropriate approach for each one. No warnings, no recommendations unless the user asks.
 
 **TypeScript migration offer:** If the developer has indicated they prefer TypeScript, offer migration before running the 19 dimensions:
 
 > "Your project is in JavaScript and that works fine. Your developer mentioned they prefer TypeScript — want me to migrate the codebase first? I'll do it properly: full interfaces in `domain.ts`, typed API stubs, PropTypes converted to interfaces, no shortcuts. Once that's done I'll run the full handoff audit on the TypeScript version."
 
-If the user confirms, read and follow `references/jsx-to-tsx-migration.md` before proceeding with the 19 dimensions.
+If the user confirms, read and follow `references/jsx-to-tsx-migration.md` before proceeding with the 20 dimensions.
 
 ---
 
 ## Next.js — `next.config.*` present or `next` in `package.json`
-Proceed with all 19 dimensions, applying the Next.js overrides listed later in this document.
+Proceed with all 20 dimensions, applying the Next.js overrides listed later in this document.
 
 ---
 
@@ -70,23 +70,35 @@ Do not proceed. Explain:
 
 ## Language and tone rule
 
-**This skill is used by designers and PMs, not just developers.** Always communicate in plain, friendly language unless the user is clearly technical.
+**This skill is used by designers and PMs growing into design engineers, as well as developers.** The audit serves both: a designer should be able to read it and learn, a developer should be able to act on it.
 
-**Before writing any finding, rewrite it using this table if the user is non-technical. This is mandatory, not optional.**
+**Findings: technical term + plain consequence.**
+Keep the precise technical term (it's how a designer learns the vocabulary), but pair it with a plain clause explaining why it matters. The term teaches; the consequence clarifies.
 
-| Instead of this | Say this |
+- Good: "PropTypes missing on 143 components — a developer has to open each file to learn what data it expects."
+- Good: "Direct fetch in PopulationMapView.jsx:42 — bypasses the API layer, so swapping in a real backend later means rewriting the component."
+- Avoid: "PropTypes missing." (term with no teaching consequence)
+- Avoid: "Components don't say what they need." (consequence with no term — designer learns nothing)
+
+**Exceptions — always full, clear prose (never compressed):**
+- Security warnings (hardcoded keys, XSS risks)
+- Irreversible or destructive actions
+- Anything design-system or design-related (this is the technical area designers engage with most — explain it fully)
+
+**Summary: warm and plain.**
+The end-of-audit summary is the one section written purely for a non-technical reader. No jargon. Covers overall health, the top 3 things to fix, and what it means for handing off to a developer. This is where the translation table applies.
+
+| Technical term (in summary, translate to) | Plain version |
 | :--- | :--- |
-| "god-component" | "one file doing too many things" |
-| "reducer isolation" | "a cleaner way to organize how data changes" |
-| "API contract stubs" | "placeholder functions where real data will connect" |
-| "hardcoded hex values" | "colors written directly in the code instead of using your design system" |
-| "TypeScript interface" | "a description of what your data looks like" |
-| "dimension 14 blocker" | "there's something worth fixing" |
-| "PropTypes not enforced" | "components don't describe what data they expect" |
-| "DOM hierarchy guard" | "keeping the visual structure exactly the same" |
-| "memoization" | "performance shortcuts so the app stays fast" |
+| god-component | one file doing too many things |
+| API stubs / data layer | where real data will plug in |
+| design tokens | reusable color and spacing values |
+| error/empty states | what users see when data fails or is missing |
+| PropTypes / types | components describing what data they expect |
+| routing | how the app moves between pages |
+| hardcoded secret | a password or key exposed in the code |
 
-Read the user's messages for cues. If they use "component", "props", "state" correctly — be more technical. If they say "my app" or "my design" — stay plain.
+Read the user's messages for cues on how technical to make the summary. If they use "component", "props", "state" correctly, the summary can carry a bit more vocabulary.
 
 ---
 
@@ -139,7 +151,7 @@ When the developer connects real APIs, they change only the function body inside
 
 ---
 
-# The 19-Dimension Framework
+# The 20-Dimension Framework
 
 ## Structure & Separation
 
@@ -148,6 +160,7 @@ When the developer connects real APIs, they change only the function body inside
 - Isolate stateful logic from presentational components.
 - Break god-components (400+ lines) into focused child modules.
 - **DOM Hierarchy Guard:** Preserve the exact DOM layout hierarchy when splitting. No redundant wrappers or altered CSS display properties.
+- **Circular dependency check:** Scan for components importing each other in a loop. Circular imports break builds and cause subtle bugs. Common in vibe-coded prototypes where the AI generates imports without considering the dependency graph. In audit mode, flag any circular chain found.
 - **Absolute path aliases:** Enforce `@/*` path mapping across the codebase. No `../../` relative imports — they break when files move and make the codebase harder to navigate. Configure in `tsconfig.json` (TS) or `jsconfig.json` (JS) and `vite.config.ts`. In audit mode, flag any import using `../..` as a violation.
 - **Reusability pass (separate audit step):** Scan the entire codebase — not just the audited module — for duplicated UI patterns. Practical detection methods:
   - Search for similarly named component files across folders (e.g., `Button.jsx` in three different directories)
@@ -355,14 +368,27 @@ Covers **colors, spacing, sizing, typography, and all visual values.** Not just 
 - **Error state:** what happens when the data call fails (fallback message — not a crash)
 - **Empty state:** what appears when there's no data (helpful message — not invisible component)
 
-### 16. QA & Test Selectors
+### 16. QA: Test Selectors & Test Existence
 
+**Test selectors:**
 - `data-testid` on all primary interactive elements, form controls, and major layout sections.
 
-### 17. Dependency & Environment Hygiene
+**Test existence:**
+- Check if any test files exist (`*.test.*`, `*.spec.*`, `__tests__/` folders)
+- Check if a test runner is configured in `package.json` (vitest, jest, playwright, cypress)
+- If no tests exist at all, flag as Medium severity — a developer inherits a codebase with no safety net for refactoring
+- If tests exist, note what's covered and what's not. Don't audit test quality — just confirm the safety net exists.
+
+### 17. Dependency, Environment & Onboarding Hygiene
 
 - Clean unused packages. Pin critical dependency versions.
 - Provide `.env.example` with all required environment variables stubbed.
+- **README setup check:** A developer cloning this repo should be able to run the app within 5 minutes. Verify:
+  - `README.md` exists and is not the default template
+  - It includes install instructions (`npm install`)
+  - It includes run instructions (`npm run dev`)
+  - It mentions any required environment variables
+  - If README is missing or only a default template, flag as Medium severity
 
 ### 18. File Hygiene & Icon Consolidation
 
@@ -376,7 +402,7 @@ Covers **colors, spacing, sizing, typography, and all visual values.** Not just 
   6. Only extract to a custom icon file in `components/icons/` if no reasonable library equivalent exists
   7. Never leave raw multi-line SVG coordinate paths inside UI components
 
-### 19. Component Production Readiness (NEW)
+### 19. Component Production Readiness
 
 This dimension checks whether components survive real-world conditions, not just the prototype's mock data.
 
@@ -387,16 +413,42 @@ This dimension checks whether components survive real-world conditions, not just
 - **Special characters:** component doesn't break on quotes, ampersands, unicode
 
 **Reusability:**
-- **No hardcoded content:** labels, placeholders, error messages, and URLs passed as props — not baked into the component
+- **Baked-in UI text:** labels, placeholders, button text, error messages baked directly into a component instead of passed as props. (Note: this is UI *strings* — distinct from dimension 2, which covers hardcoded *data arrays*.) Baked-in text reduces reusability — flag as Low.
 - **Prop interface clarity:** PropTypes (JS) or TypeScript interfaces (TS) define what the component accepts. A developer should understand the component's API without reading its internals.
 - **Style isolation:** component works regardless of parent context. Doesn't depend on a specific wrapper's width or CSS for its own layout.
 
 **Responsive basics:**
-- Component doesn't break at common viewport widths (mobile, tablet, desktop)
 - No fixed pixel widths that prevent the component from adapting
 - If responsive behavior is explicitly out of scope for the project, note it and move on
 
-**In audit mode:** for each major component, check the data resilience items. Flag any component that would crash or visually break with null data, empty arrays, or long strings.
+**Coverage method (scan all, deep-read capped):**
+- Run the null-access and fixed-width grep patterns across ALL components (cheap — grep returns matching lines, not whole files)
+- From the flagged candidates, deep-read the highest-risk ones, capped at 8 components maximum
+- Report honestly: "grep flagged 23 components with potential null-access; deep-read the 8 highest-risk; recommend reviewing the remaining 15"
+- Never report "passed" based on a small sample — always state how many were flagged vs how many were deep-read
+
+### 20. Security Basics
+
+Frontend prototypes often contain security holes that get inherited by the developer. Check for:
+
+**Hardcoded secrets:**
+- API keys, tokens, or credentials in source code (not just `.env` — check actual JS/TS files)
+- Firebase configs, Stripe keys, auth tokens written directly in code
+- Any string that looks like a key: long alphanumeric strings, strings starting with `sk_`, `pk_`, `AKIA`, `ghp_`
+
+**Dangerous patterns:**
+- `dangerouslySetInnerHTML` — XSS risk if used with user-provided data
+- Unvalidated URL parameters used in fetch calls or link hrefs
+- `eval()` or `new Function()` usage
+
+**Committed secrets:**
+- `.env` file (not `.env.example`) committed to git — check `.gitignore`
+- Any file containing real API endpoints with keys in query parameters
+
+**Dependency vulnerabilities:**
+- Run `npm audit` — flag any high or critical severity vulnerabilities
+
+**In audit mode:** flag any hardcoded secret as High severity — this is a real security risk, not a code quality issue. Flag `dangerouslySetInnerHTML` as Medium unless it's used with sanitized content.
 
 ---
 
@@ -446,6 +498,11 @@ The `api.ts`/`api.js` stub pattern still applies. `// @backend` annotations shou
 | **Components crash on null data** | Add defensive checks for missing fields |
 | **Fixed widths breaking layout** | Use relative sizing or constrained max-widths |
 | **Raw multi-line SVGs in JSX** | Check lucide-react first, then heroicons/phosphor. Replace with library import if match found. Only extract to custom icon file if no match exists. |
+| **Hardcoded API key in source** | Move to `.env` and add `.env` to `.gitignore`. Never commit real keys. |
+| **dangerouslySetInnerHTML** | Replace with safe rendering or sanitize input with DOMPurify. |
+| **No tests exist** | A dev inherits no safety net. At minimum configure a test runner and add tests to critical paths. |
+| **README missing setup instructions** | A dev can't run the app without asking the designer. Add install + run steps. |
+| **Circular imports** | Components importing each other in a loop. Breaks builds and causes subtle bugs. |
 
 ---
 
@@ -459,23 +516,56 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 **Audit rules:**
 
-1. **Lead with stack detection.** Identify the stack (React/TS, React/JS, Next.js, or unsupported). If unsupported, stop and follow Step 0 redirection. If Next.js, apply overrides.
+1. **Read before judging.** Before running any grep patterns, spend 2 minutes mapping the project: what is it for, what stack, what conventions are already in place? This prevents false positives — you won't flag JSDoc as a problem if you first understand it's a JS codebase by design.
 
-2. **Show evidence, not conclusions.** Every failing dimension must cite specific file paths and line references. Citing the same file twice as two different sources is padding — each citation must be a distinct finding. When citing the same file for multiple issues, include distinct line numbers and describe what's different.
+2. **Lead with stack detection.** Identify the stack (React/TS, React/JS, Next.js, or unsupported). If unsupported, stop and follow Step 0 redirection. If Next.js, apply overrides.
 
-3. **Run the grep patterns from audit-checklist.md.** Required, not optional. Include output summaries in the report.
+3. **Prefer 15 high-confidence findings over 50 speculative ones.** If you can't point to a specific file and line to prove a finding, don't include it. Speculative findings waste the reader's time and undermine trust in the real findings.
 
-4. **Flag interactions from code.** Scan for extreme spring configs, zero-duration transitions, undebounced hover handlers, setTimeout-driven visuals. List findings with file + line, or explicitly state "No interaction smells found." Never skip this section.
+4. **Label facts vs judgments.** A fact is: "this function has no error handling: api.js:142." A judgment is: "this module's responsibilities feel unclear." Both are valid — but label which is which so the reader knows what's proven and what's an opinion.
 
-5. **Dimension 4 is all-or-nothing.** Any component fetching directly = fail.
+5. **Show evidence, not conclusions.** Every failing dimension must cite specific file paths WITH line numbers.
 
-6. **Dimension 8 requires active scanning.** Search for reinvented primitives using the grep patterns in audit-checklist.md. If no scan was performed, mark as unevaluated — not passing.
+   **Citation format rules (non-negotiable):**
+   - Every citation must include a line number: `api.js:42` not just `api.js`
+   - Citing the same file multiple times is ONLY acceptable if each citation has a DIFFERENT line number and describes a DIFFERENT issue
+   - If you catch yourself writing `api.js, api.js, api.js` — STOP. That is padding. Write `api.js:42 (missing @backend on getPatients), api.js:67 (missing @backend on createPatient), api.js:91 (flat response instead of envelope)` instead.
+   - If you cannot provide a line number, write "file:? (line not verified)" — this is honest and acceptable. Writing the same filename three times is not.
 
-7. **Dimension 19 requires spot-checking.** Pick 3-5 major data-consuming components and check: what happens with null data? Empty arrays? Long strings? Report findings per component.
+   **WRONG:** `Evidence: domain.js, domain.js, domain.js`
+   **WRONG:** `Evidence: SoaWorkspace.jsx, SoaWorkspace.jsx`
+   **RIGHT:** `Evidence: domain.js:45 (duplicate PopulationView typedef), domain.js:112 (conflicting Scenario fields)`
+   **RIGHT:** `Evidence: SoaWorkspace.jsx:134 (delete handler), SoaWorkspace.jsx:201 (reset handler)`
 
-8. **Every finding must include a severity (High/Medium/Low) with justification.** Not just the label — one sentence explaining why.
+   **Verify numbers before stating them.** If you report a file has 23,053 lines or a context has 26 useState calls — that number must come from an actual grep/awk output you ran, not from estimation. If you didn't run the count command, don't state a specific number. Say "very large file" or "many useState calls" instead. A wrong number destroys the credibility of the entire report.
 
-9. **Design fidelity note:** In audit mode, visual fidelity cannot be verified without running the app. State this once at the top: "Visual fidelity should be verified in the browser after any refactoring." Do not mark it as "AT RISK" — that implies something is wrong when nothing has been checked.
+6. **Run the grep patterns from audit-checklist.md.** Required, not optional. Include output summaries in the report.
+
+7. **Flag interactions from code.** Scan for extreme spring configs, zero-duration transitions, undebounced hover handlers, setTimeout-driven visuals. List findings with file + line, or explicitly state "No interaction smells found." Never skip this section.
+
+8. **Dimension 4 is all-or-nothing.** Any component fetching directly = fail.
+
+9. **Dimension 8 requires active scanning.** Search for reinvented primitives using the grep patterns in audit-checklist.md. If no scan was performed, mark as unevaluated — not passing.
+
+10. **Dimension 19 coverage.** Run null-access and fixed-width greps across ALL components. Deep-read the highest-risk flagged candidates, capped at 8. Report how many were flagged vs deep-read — never report "passed" on a small sample.
+
+11. **Dimension 20 requires security scanning.** Run the security grep patterns. Flag any hardcoded secret as High immediately.
+
+12. **Every finding must include a severity (High/Medium/Low) with justification.** Not just the label — one sentence explaining why.
+
+13. **Include a "What NOT to fix" section.** After the recommended fix order, list 2-3 things that could be improved but aren't worth the effort given the project's maturity. Explain why. A designer needs to know what to skip as much as what to fix.
+
+14. **Design fidelity note:** In audit mode, visual fidelity cannot be verified without running the app. State this once at the top: "Visual fidelity should be verified in the browser after any refactoring." Do not mark it as "AT RISK."
+
+15. **End with a "Summary for the designer."** A warm, plain-language section (no jargon — use the translation table) covering: overall health in a sentence, the top 3 things to fix and why they matter for handoff, and roughly how much developer time the fixes will save. This is the part a non-technical reader actually reads.
+
+16. **Self-review gate before finalizing.** Re-read your own report and verify each of these before sending. If any fail, fix before finalizing:
+    - Every citation has a line number (or honest `file:? (line not verified)`)
+    - No filename appears multiple times without distinct line numbers and distinct issues
+    - Every specific number (line counts, hook counts) came from actual command output, not estimation
+    - Every finding pairs a technical term with a plain consequence
+    - Security and design-system findings are in full clear prose, not compressed
+    - The designer summary contains no untranslated jargon
 
 ```
 /vibe-to-prod audit [file or directory]
@@ -483,7 +573,7 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 ## Refactor mode (default)
 
-Full 19-dimension pass. Refactor while preserving design intent. The `// @backend` annotations in `api.ts`/`api.js` are the only integration contract — no separate document is generated.
+Full 20-dimension pass. Refactor while preserving design intent. The `// @backend` annotations in `api.ts`/`api.js` are the only integration contract — no separate document is generated.
 
 ```
 /vibe-to-prod refactor [file or directory]
