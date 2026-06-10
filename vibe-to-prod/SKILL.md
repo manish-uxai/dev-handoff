@@ -5,7 +5,7 @@ license: MIT
 compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Supports React and Next.js projects (TypeScript or JavaScript). Other stacks trigger guided redirection.
 metadata:
   author: vibe-to-prod
-  version: "4.3.0"
+  version: "4.4.0"
   framework: 20-dimension-handoff
 ---
 
@@ -553,7 +553,7 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 12. **Every finding must include a severity (High/Medium/Low) with justification.** Not just the label — one sentence explaining why.
 
-13. **Include a "What NOT to fix" section.** After the recommended fix order, list 2-3 things that could be improved but aren't worth the effort given the project's maturity. Explain why. A designer needs to know what to skip as much as what to fix.
+13. **Trust grep output — don't over-read files.** The grep evidence pack proves most findings on its own. Only deep-read a source file when the finding genuinely requires seeing code structure (dimension 19 null-handling, confirming a god-component's internal organization). Reading files to "double-check" a finding grep already proved wastes tokens. Cap verification reads to what's strictly necessary.
 
 14. **Design fidelity note:** In audit mode, visual fidelity cannot be verified without running the app. State this once at the top: "Visual fidelity should be verified in the browser after any refactoring." Do not mark it as "AT RISK."
 
@@ -574,6 +574,13 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 ## Refactor mode (default)
 
 Full 20-dimension pass. Refactor while preserving design intent. The `// @backend` annotations in `api.ts`/`api.js` are the only integration contract — no separate document is generated.
+
+**Avoid over-engineering. When the user says "fix it all," that does not mean apply every possible change maximally. Use judgment:**
+- Split god-components, but start with data-bound ones — don't decompose every large file in one pass; some are fine as-is
+- Don't globally remove every fixed pixel width — target ones that genuinely break responsive layout, leave acceptable micro-constraints
+- Don't migrate routing before fixing data flow — data boundary cleanup gives bigger handoff value first
+- Don't add memoization everywhere — only where it measurably helps
+- The goal is a codebase a developer can integrate, not a codebase that satisfies every linter rule at the cost of churn
 
 ```
 /vibe-to-prod refactor [file or directory]

@@ -41,10 +41,10 @@ Output quality:
 - [ ] Every finding pairs a technical term with a plain consequence (term teaches, consequence clarifies)
 - [ ] Security and design-system findings in full clear prose, never compressed
 - [ ] Every finding labeled as FACT (file:line proof) or JUDGMENT (reasoned opinion)
-- [ ] "What NOT to fix" section included after fix order
 - [ ] "Summary for the designer" section at end — warm, plain, no jargon
 - [ ] Self-review gate passed: citations have line numbers, no padding, numbers verified, summary jargon-free
 - [ ] Prefer 15 high-confidence findings over 50 speculative ones
+- [ ] Trust grep output — don't over-read files to double-check what grep already proved
 ```
 
 ---
@@ -73,6 +73,8 @@ The grep patterns below are **required** evidence-gathering steps. Run them and 
 ## Quick grep patterns
 
 **Required in audit mode. Include output in the report.**
+
+**Run these in small batches (one dimension group at a time), not as one giant chained command.** A single massive command produces output that gets truncated, forcing re-runs that waste tokens. Run 3-4 related greps, read the output, move to the next group. Each `# ===` section below is a natural batch boundary.
 
 ```bash
 # === STEP 0: STACK DETECTION ===
@@ -233,8 +235,9 @@ grep -RInE 'eval\(|new Function\(' src --include='*.jsx' --include='*.tsx' --inc
 ls -la .env 2>/dev/null && echo 'WARNING: .env file exists — check .gitignore'
 grep -q '\.env' .gitignore 2>/dev/null && echo '.env is in .gitignore' || echo 'WARNING: .env NOT in .gitignore'
 
-# npm audit for known vulnerabilities
-npm audit --audit-level=high 2>/dev/null | tail -20
+# npm audit for known vulnerabilities (CONDITIONAL — skip if it hangs or environment is offline)
+# This can be slow and verbose. Run it with a timeout. If it doesn't return quickly, note "run npm audit manually" and move on.
+timeout 30 npm audit --audit-level=high 2>/dev/null | tail -15 || echo "npm audit skipped — run manually before handoff"
 
 # === DIMENSION 19: PRODUCTION READINESS ===
 
