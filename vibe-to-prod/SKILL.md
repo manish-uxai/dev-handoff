@@ -5,8 +5,8 @@ license: MIT
 compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Supports React and Next.js projects (TypeScript or JavaScript). Other stacks trigger guided redirection.
 metadata:
   author: vibe-to-prod
-  version: "4.4.0"
-  framework: 20-dimension-handoff
+  version: "4.5.0"
+  framework: 21-dimension-handoff
 ---
 
 # Philosophy
@@ -28,23 +28,23 @@ The designer-builder has already developed the final production UI. Your job is 
 ---
 
 ## React (with TypeScript) — `.tsx` / `.ts`
-Proceed with all 20 dimensions.
+Proceed with all 21 dimensions.
 
 ---
 
 ## React (with JavaScript) — `.jsx` / `.js`
-Fully supported. Proceed with all 20 dimensions — the skill automatically applies the JavaScript-appropriate approach for each one. No warnings, no recommendations unless the user asks.
+Fully supported. Proceed with all 21 dimensions — the skill automatically applies the JavaScript-appropriate approach for each one. No warnings, no recommendations unless the user asks.
 
 **TypeScript migration offer:** If the developer has indicated they prefer TypeScript, offer migration before running the 19 dimensions:
 
 > "Your project is in JavaScript and that works fine. Your developer mentioned they prefer TypeScript — want me to migrate the codebase first? I'll do it properly: full interfaces in `domain.ts`, typed API stubs, PropTypes converted to interfaces, no shortcuts. Once that's done I'll run the full handoff audit on the TypeScript version."
 
-If the user confirms, read and follow `references/jsx-to-tsx-migration.md` before proceeding with the 20 dimensions.
+If the user confirms, read and follow `references/jsx-to-tsx-migration.md` before proceeding with the 21 dimensions.
 
 ---
 
 ## Next.js — `next.config.*` present or `next` in `package.json`
-Proceed with all 20 dimensions, applying the Next.js overrides listed later in this document.
+Proceed with all 21 dimensions, applying the Next.js overrides listed later in this document.
 
 ---
 
@@ -151,7 +151,7 @@ When the developer connects real APIs, they change only the function body inside
 
 ---
 
-# The 20-Dimension Framework
+# The 21-Dimension Framework
 
 ## Structure & Separation
 
@@ -450,6 +450,31 @@ Frontend prototypes often contain security holes that get inherited by the devel
 
 **In audit mode:** flag any hardcoded secret as High severity — this is a real security risk, not a code quality issue. Flag `dangerouslySetInnerHTML` as Medium unless it's used with sanitized content.
 
+### 21. Design Quality (No AI Slop)
+
+This is the dimension designers care about most — it protects visual craft, not just code structure. Vibe-coded UIs drift toward generic "AI dashboard" tropes and inconsistent styling. Check for and flag:
+
+**Avoid:**
+- Decorative accent borders on cards (thick `border-left`/`border-right` to imply importance) — generic AI-dashboard cliché
+- Random or one-off colors not defined as semantic tokens — every color should map to a token in `:root`
+- Inline `style={{ color: '#…' }}` or ad-hoc hex/rgb in components
+- Turning every data series the same alert color (e.g. all bars red when "critical") — this destroys metric identity
+
+**Prefer:**
+- Semantic tokens for everything: `--color-category-*`, `--color-status-*`, `--color-fg-muted`
+- Legends that match what's drawn — color encodes the metric type, severity is a separate visual cue
+- Tooltips on flagged chart elements explaining what the metric is, its value, and why it matters
+- shadcn `Tooltip`, `Badge`, `Card` without custom chrome borders
+
+**Severity vs metric color (important for data viz):**
+Keep two encoding layers separate:
+- **Fill color = which metric** (patient = one token, site = another, cost = another)
+- **Ring / badge / icon = severity** (warning or critical outline)
+
+Never recolor an entire chart series red to signal severity — the viewer loses track of which series is which. Severity is an overlay, not a replacement for metric identity.
+
+**In audit mode:** these are mostly Medium or Low severity (visual quality, not blockers), but they're the findings a designer most wants to see. Explain them clearly and fully — this is a design-system area, so never compress these findings.
+
 ---
 
 # Next.js Dimension Overrides
@@ -551,6 +576,8 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 11. **Dimension 20 requires security scanning.** Run the security grep patterns. Flag any hardcoded secret as High immediately.
 
+12. **Dimension 21 (design quality) — explain fully, never compress.** This is the designer's home turf. Flag AI-slop patterns, color-token drift, and severity-vs-metric color issues in full clear prose. These are usually Medium/Low but matter most to the audience.
+
 12. **Every finding must include a severity (High/Medium/Low) with justification.** Not just the label — one sentence explaining why.
 
 13. **Trust grep output — don't over-read files.** The grep evidence pack proves most findings on its own. Only deep-read a source file when the finding genuinely requires seeing code structure (dimension 19 null-handling, confirming a god-component's internal organization). Reading files to "double-check" a finding grep already proved wastes tokens. Cap verification reads to what's strictly necessary.
@@ -573,7 +600,7 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 ## Refactor mode (default)
 
-Full 20-dimension pass. Refactor while preserving design intent. The `// @backend` annotations in `api.ts`/`api.js` are the only integration contract — no separate document is generated.
+Full 21-dimension pass. Refactor while preserving design intent. The `// @backend` annotations in `api.ts`/`api.js` are the only integration contract — no separate document is generated.
 
 **Avoid over-engineering. When the user says "fix it all," that does not mean apply every possible change maximally. Use judgment:**
 - Split god-components, but start with data-bound ones — don't decompose every large file in one pass; some are fine as-is

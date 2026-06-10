@@ -1,4 +1,4 @@
-# 20-Dimension Audit Checklist
+# 21-Dimension Audit Checklist
 
 Copy this checklist when auditing a vibe-coded prototype for production readiness.
 
@@ -36,6 +36,7 @@ Audit Progress:
 - [ ] 18. File Hygiene & Icons — no orphans, unused imports, dead code; inline SVGs use library icons first
 - [ ] 19. Component Production Readiness — spot-check 3-5 major components for: null/undefined handling, text overflow, empty array behavior, hardcoded content, prop interface clarity, style isolation
 - [ ] 20. Security Basics — no hardcoded secrets, no dangerouslySetInnerHTML with unsanitized data, npm audit clean, .env not committed
+- [ ] 21. Design Quality — no AI-slop (decorative accent borders, one-off colors), all colors mapped to tokens, severity separate from metric color in charts
 
 Output quality:
 - [ ] Every finding pairs a technical term with a plain consequence (term teaches, consequence clarifies)
@@ -238,6 +239,17 @@ grep -q '\.env' .gitignore 2>/dev/null && echo '.env is in .gitignore' || echo '
 # npm audit for known vulnerabilities (CONDITIONAL — skip if it hangs or environment is offline)
 # This can be slow and verbose. Run it with a timeout. If it doesn't return quickly, note "run npm audit manually" and move on.
 timeout 30 npm audit --audit-level=high 2>/dev/null | tail -15 || echo "npm audit skipped — run manually before handoff"
+
+# === DIMENSION 21: DESIGN QUALITY (AI SLOP) ===
+
+# Decorative accent borders on cards (AI-dashboard cliché)
+grep -RInE 'border-l-[0-9]|border-r-[0-9]|borderLeft|borderRight' src/components --include='*.jsx' --include='*.tsx' | grep -iE 'card' | head -20
+
+# One-off colors not using tokens (raw Tailwind color classes instead of var tokens)
+grep -RInE 'bg-(red|blue|green|gray|slate|zinc|yellow|orange|purple|pink)-[0-9]|text-(red|blue|green|gray|slate|zinc)-[0-9]' src/components --include='*.jsx' --include='*.tsx' | head -40
+
+# Inline color styles (should be tokens)
+grep -RInE "style=\{\{[^}]*color[^}]*#" src/components --include='*.jsx' --include='*.tsx' | head -20
 
 # === DIMENSION 19: PRODUCTION READINESS ===
 
