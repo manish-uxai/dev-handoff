@@ -5,7 +5,7 @@ license: MIT
 compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Supports React and Next.js projects. JavaScript codebases are migrated to TypeScript automatically — output is always TypeScript. Other stacks trigger guided redirection.
 metadata:
   author: vibe-to-prod
-  version: "5.3.0"
+  version: "5.4.0"
   framework: 20-dimension-handoff
 ---
 
@@ -37,6 +37,16 @@ The designer-builder has already developed the final production UI. Your job is 
 > Once installed, close and reopen VS Code, then run this skill again. Everything will work from there."
 
 Do not attempt to do the rest of the work without Node. A clear stop with a clear next step is better than a half-broken state.
+
+## Dependency install (right after Node check passes)
+
+Once Node is confirmed, check whether dependencies are installed. If `node_modules` is missing OR there's no lockfile (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`), run `npm install` automatically before proceeding. The designer should never have to do this manually — the skill handles it.
+
+Two things this solves: the designer never has to find and use the terminal, and `npm audit` (dimension 19) needs a lockfile to work — fresh Figma Make exports ship without one, so installing first makes the security scan meaningful.
+
+**Handle the common Figma Make install failure:** these exports sometimes contain a pnpm-style `link:` dependency in package.json that `npm install` can't resolve (fails with a workspace/link error). If install fails for this reason, fix the malformed dependency entry in package.json, then re-run install. Don't stop the whole run over it — patch and proceed.
+
+If `npm install` fails for any other reason, report the exact error plainly and stop, rather than continuing on a broken dependency tree.
 
 ---
 
@@ -496,9 +506,24 @@ Frontend prototypes often contain security holes that get inherited by the devel
 
 ### 20. Design Quality (No AI Slop)
 
-This is the dimension designers care about most — it protects visual craft, not just code structure. Vibe-coded UIs drift toward generic "AI dashboard" tropes and inconsistent styling. Check for and flag:
+This is the dimension designers care about most — it protects visual craft, not just code structure. Vibe-coded UIs drift toward generic "AI dashboard" tropes and inconsistent styling.
 
-**Avoid:**
+**What "AI slop" actually means here — the undifferentiated-default cluster:**
+
+AI slop in UI has a specific signature. None of these is bad alone — they're bad _together_, because together they signal "generic default, no design decision was made":
+
+- Inter or Geist as the default sans-serif
+- Blue or indigo as the primary accent with subtle hover states
+- Large rounded corners on every card and button
+- A gradient hero section with headline, subheadline, and CTA
+- Icon + label sidebar nav that looks straight out of default shadcn
+- 50px+ padding everywhere because "clean and spacious" is the safe default
+
+The test is NOT "does it use shadcn" — the skill mandates shadcn, and shadcn is good. The test is: **does this UI have an identity, or is it the undifferentiated default?** A project with a real `design.md` driving distinct brand colors, intentional type, and considered spacing uses shadcn AND looks like itself. Slop is shadcn shipped raw with default Inter, default blue, default radii, and no design.md identity applied.
+
+So the check is: does `design.md` define a real identity, and do the components reflect it — or do they fall back to framework defaults? If the design.md exists but components ignore it and use defaults, flag that drift. If there's no identity at all (the default cluster above, all present together), flag it as slop. A single default (just using Inter, say) is fine — flag the _cluster_.
+
+**Also avoid:**
 
 - Decorative accent borders on cards (thick `border-left`/`border-right` to imply importance) — generic AI-dashboard cliché
 - Random or one-off colors not defined as semantic tokens — every color should map to a token in `:root`
@@ -507,10 +532,10 @@ This is the dimension designers care about most — it protects visual craft, no
 
 **Prefer:**
 
+- The design.md identity applied consistently — brand colors, type, spacing that are intentional, not default
 - Semantic tokens for everything: `--color-category-*`, `--color-status-*`, `--color-fg-muted`
 - Legends that match what's drawn — color encodes the metric type, severity is a separate visual cue
-- Tooltips on flagged chart elements explaining what the metric is, its value, and why it matters
-- shadcn `Tooltip`, `Badge`, `Card` without custom chrome borders
+- shadcn `Tooltip`, `Badge`, `Card` styled via tokens, without custom chrome borders
 
 **Severity vs metric color (important for data viz):**
 Keep two encoding layers separate:
@@ -646,11 +671,23 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 13. **Every finding must include a severity (High/Medium/Low) with justification.** Not just the label — one sentence explaining why.
 
-14. **Trust grep output — don't over-read files.** The grep evidence pack proves most findings on its own. Only deep-read a source file when the finding genuinely requires seeing code structure (dimension 18 null-handling, confirming a god-component's internal organization). Reading files to "double-check" a finding grep already proved wastes tokens. Cap verification reads to what's strictly necessary.
+14. **Required output structure — always a table first, then details.** Every audit follows the same shape so the designer gets a consistent, scannable result every time (no more text-list one run, table the next):
 
-15. **Design fidelity note:** In audit mode, visual fidelity cannot be verified without running the app. State this once at the top: "Visual fidelity should be verified in the browser after any refactoring." Do not mark it as "AT RISK."
+    First, a **summary table** covering all 20 dimensions at a glance:
 
-16. **End with a "Summary for the designer."** A warm, plain-language section (no jargon — use the translation table) covering:
+    | #   | Dimension              | Status | Severity |
+    | --- | ---------------------- | ------ | -------- |
+    | 1   | Component Architecture | FAIL   | High     |
+    | 2   | Clean Data Extraction  | PASS   | —        |
+    | ... | ...                    | ...    | ...      |
+
+    Status is PASS / PARTIAL / FAIL / N/A (use N/A for conditional dimensions that don't apply, e.g. RBAC on an app with no roles). Then, **below the table, the detailed findings** — only for dimensions that aren't a clean PASS, each with evidence (file:line), the fact/judgment label, severity justification, and the plain-language consequence. This structure is required in both audit mode and the report a fix-it-all run produces at the end.
+
+15. **Trust grep output — don't over-read files.** The grep evidence pack proves most findings on its own. Only deep-read a source file when the finding genuinely requires seeing code structure (dimension 18 null-handling, confirming a god-component's internal organization). Reading files to "double-check" a finding grep already proved wastes tokens. Cap verification reads to what's strictly necessary.
+
+16. **Design fidelity note:** In audit mode, visual fidelity cannot be verified without running the app. State this once at the top: "Visual fidelity should be verified in the browser after any refactoring." Do not mark it as "AT RISK."
+
+17. **End with a "Summary for the designer."** A warm, plain-language section (no jargon — use the translation table) covering:
     - Overall health in a sentence
     - Top 3 things to fix and why they matter for handoff
     - Roughly how much developer time the fixes will save
@@ -660,15 +697,16 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
     This is the part a non-technical reader actually reads. It should make the designer feel informed and in control.
 
-17. **Self-review gate before finalizing.** Re-read your own report and verify each of these before sending. If any fail, fix before finalizing:
+18. **Self-review gate before finalizing.** Re-read your own report and verify each of these before sending. If any fail, fix before finalizing:
     - Every citation has a line number (or honest `file:? (line not verified)`)
     - No filename appears multiple times without distinct line numbers and distinct issues
     - Every specific number (line counts, hook counts) came from actual command output, not estimation
     - Every finding pairs a technical term with a plain consequence
     - Security and design-system findings are in full clear prose, not compressed
+    - The summary table covers all 20 dimensions; detailed findings appear below it
     - The designer summary contains no untranslated jargon
 
-18. **End with a two-path choice.** After the designer summary, offer exactly two ways forward — no menu of individual tasks:
+19. **End with a two-path choice.** After the designer summary, offer exactly two ways forward — no menu of individual tasks:
 
     > **How would you like to proceed?**
     >
@@ -707,18 +745,47 @@ Read and follow `references/jsx-to-tsx-migration.md` completely:
 
 **Path 1 — "Fix it all" (the designer said "fix it all," "fix everything," "let's go," "make it production ready").**
 
-This is explicit authorization to work to completion. Do NOT stop to ask permission for individual findings, and do NOT present a menu of next tasks. The designer chose hands-off.
+This is explicit authorization to fix everything — even if it takes two rounds. The designer chose hands-off; they do NOT want to make decisions or project-manage. Your job is to complete all the work, not to hand them a list.
 
-1. **Announce the plan once, then proceed.** Before starting, give one short heads-up in plain language:
-   > "Got it — fixing everything in one pass. I'll start with the TypeScript migration (your .jsx files become .tsx with proper types), then work through the findings in priority order: data layer, state, then cleanup. I'll narrate as I go and report when it's done."
-2. **Work continuously through all High → Medium → Low findings in priority order.** No "want me to continue?" stops. No task menus.
-3. **Narrate progress as you go** so the designer can follow without having to respond:
-   > "✓ TypeScript migration complete. Now splitting the workspace context into focused pieces..."
-   > "✓ Context split done. Adding the data-fetching layer..."
-   > This gives the designer visibility without requiring them to type anything.
-4. **Only stop if genuinely blocked:** the build breaks and can't be auto-fixed, or there's a real decision only a human can make (e.g. ambiguous design intent). When stopping for a block, explain it plainly and ask the specific question — this is not the same as the task-menu.
-5. **If the run must pause for length** (large codebase, context limits): resume the same plan automatically on the next turn. Say "Continuing — next is X" and keep going. Don't make the designer pick from options to resume.
-6. **Report once at the end** with what was fixed and the updated state.
+**Two categories of work, handled differently:**
+
+**Category A — deterministic hardening (do ALL of it in one continuous pass, no stops):** TypeScript migration (if needed), data extraction, domain types, API stubs + hooks, state consolidation + provider-mount safety, RBAC (if applicable), backend markers, component library/reuse, design tokens, the missing cases (destructive/empty/error), routing migration, expensive-ops check, accessibility/contrast, code quality, error boundaries, dependency/env hygiene, file hygiene/icons, production readiness, security, design quality. Every one of these is bounded and safe. Work through them continuously — no "want me to continue?", no task menus, no "what remains" lists.
+
+**Category B — high-risk surgery (the ONE thing that gets its own round):** decomposing god-components (splitting 1,000–2,000 line files into smaller pieces). This is the single riskiest change — most likely to introduce a runtime break, and most dangerous when attempted late in a long run as context degrades. It gets handled as a deliberate, separately-authorized second round. (Note: only the _file-splitting surgery_ is Category B. The rest of dimension 1 — DOM hierarchy, circular deps, aliases, reuse — is Category A and runs in round one.)
+
+**The flow:**
+
+1. **Write a progress ledger first.** Before any edits, create `vibe-to-prod-progress.md` at the project root. Top of file, verbatim: "CONTINUOUS FIX-IT-ALL PASS. Do not present a menu. Do not stop on safe work. Resume the next unchecked item automatically." Then list every finding as a checkbox in priority order, tagged [A] or [B]. This is the anti-compaction anchor — on a large codebase the conversation WILL compact, and after compaction you re-read this file to recover both the plan and the no-menu rule. Tick a box ONLY after that item's build/runtime check passes (not when you believe it's done).
+
+2. **Announce the plan once, then proceed:**
+
+   > "Got it — fixing everything. I'll work through the data layer, types, security, the missing states, routing, and cleanup in one continuous pass, verifying as I go. The one thing I'll hold for a separate step is splitting your largest files — that's the riskiest change and safer done deliberately. Starting now."
+
+3. **Work continuously through all Category A items** in priority order (High → Medium → Low). Narrate progress so the designer can follow without responding: "✓ Data layer and API stubs done. Now adding destructive-action confirmations..." No stops, no menus.
+
+4. **If the run pauses for length/compaction:** re-read the ledger and resume automatically. Say "Continuing — next is X" and keep going. NEVER present options to resume.
+
+5. **When all Category A is done and verified, hand off to round two with a reflexive prompt.** This is the ONE legitimate stop. It is NOT a menu (not a list, not "if you want, next I'll…"). It's a single clearly-bounded item with a reason, phrased so the designer types "go" reflexively — because they already said fix it all, so continuing is the expected default, not a new decision:
+
+   > "Everything's hardened and verified — data layer, types, security, missing states, routing, all done and building clean. One thing left: your three largest files (ProtocolTabBRISOTE ~1,800 lines, etc.) need splitting into smaller pieces. That's the riskiest change, so I held it for its own focused pass where I verify each split in the browser as I go. **Say "go" and I'll finish it.**"
+
+6. **On "go" (round two):** split the god-components one at a time, verifying each in the browser/runtime before the next. This is the highest-breakage-risk work — go carefully, never batch it. When done, report and remind the designer to click through their screens.
+
+**Why round two exists:** not because the agent can't do the work, and not as a menu in disguise — but because splitting huge files is where runtime breaks hide, and doing it as its own verified pass (rather than hastily at the tail of a long, context-degraded run) is what protects the designer's app. The "say go" prompt makes continuing effortless — one reflexive word, not a decision.
+
+**Never, in Path 1, produce any of these (they are all the forbidden menu):**
+
+- A numbered list of remaining tasks
+- "What remains: …"
+- "If you want, next I'll…"
+- "I can continue with X, Y, or Z"
+- Any turn that ends with safe Category-A work outstanding and a request to proceed
+
+The only permitted stops are: (a) a genuine blocker (build won't compile, real design ambiguity), or (b) the single round-two handoff for god-component splitting, phrased as above.
+
+**Clean up the ledger.** `vibe-to-prod-progress.md` is a working file, not a deliverable. Add it to `.gitignore` when you create it, and delete it once the whole fix-it-all (both rounds) is complete — it shouldn't ship in the handoff.
+
+**Non-blocking warnings are NEVER work.** A "large bundle chunk" / chunk-size warning is not a finding, not a dimension, not a functional break. Do NOT optimize Vite chunks. Do NOT list it under "what remains." Do NOT offer it as a follow-up. Do NOT mention it as outstanding. If the build succeeds with a chunk warning, that dimension of work is DONE. (This has been ignored in past runs — the agent chased chunk optimization across multiple passes. Stop. It is out of scope, full stop.)
 
 **Path 2 — "Pick specific findings" (the designer named specific things: "just the security and data issues").**
 
@@ -754,11 +821,10 @@ For a designer who can't read code, that browser click-through is the real test.
 
 **Avoid over-engineering. "Fix it all" means fix every finding well — not apply every possible change maximally.** Use judgment:
 
-- Split god-components by concern, but don't decompose files that are already cohesive
+- Split god-components by concern (Category B, round two), but don't decompose files that are already cohesive
 - Target fixed widths that genuinely break responsive layout; leave acceptable micro-constraints
 - Fix data flow before routing — data boundary cleanup gives bigger handoff value
-- Add memoization only where it measurably helps
-- **Don't chase non-blocking warnings.** A "large bundle chunk" warning is not a functional break and is not one of the 20 dimensions. Don't spend multiple passes optimizing Vite chunks unless the designer asked — it burns credits on something that doesn't affect handoff readiness.
+- Don't add memoization as a blanket practice (dimension 12 — it's a React anti-pattern); only where a measured problem exists
 - The goal is a codebase a developer can integrate, not one that satisfies every linter rule at the cost of churn
 
 ```
