@@ -153,7 +153,7 @@ If something looks wrong, the tokens or component mapping needs adjusting — no
 
 ---
 
-## Step 8: Hand off to the 21 dimensions
+## Step 8: Hand off to the 20 dimensions
 
 The project is now Vite + React + TypeScript with shadcn components and a design token system sourced from design.md. Run the normal vibe-to-prod dimension pass. Most dimensions should have a head start because:
 
@@ -162,7 +162,7 @@ The project is now Vite + React + TypeScript with shadcn components and a design
 - Dimension 8 (component library): shadcn used from the start
 - Dimension 9 (design tokens): extracted from design.md into theme
 
-The remaining dimensions (error boundaries, resilience, accessibility, security, test selectors) apply as normal.
+The remaining dimensions (error boundaries, resilience, accessibility, security, design quality) apply as normal.
 
 ---
 

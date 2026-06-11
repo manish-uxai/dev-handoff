@@ -253,7 +253,7 @@ Tell the user:
 
 > "Your project is scaffolded and ready. Every component you build should go in `src/components/`. Pages go in `src/pages/`. Data shapes go in `src/domain.ts`. API connections go in `src/api/index.ts`.
 >
-> When you're ready to prepare the project for developer handoff, run `/vibe-to-prod audit` and I'll check everything against the 21-dimension framework."
+> When you're ready to prepare the project for developer handoff, run `/vibe-to-prod audit` and I'll check everything against the 19-dimension framework."
 
 ---
 

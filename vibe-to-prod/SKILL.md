@@ -5,8 +5,8 @@ license: MIT
 compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Supports React and Next.js projects. JavaScript codebases are migrated to TypeScript automatically — output is always TypeScript. Other stacks trigger guided redirection.
 metadata:
   author: vibe-to-prod
-  version: "5.2.0"
-  framework: 21-dimension-handoff
+  version: "5.3.0"
+  framework: 20-dimension-handoff
 ---
 
 # Philosophy
@@ -48,7 +48,7 @@ Do not attempt to do the rest of the work without Node. A clear stop with a clea
 
 ## React (with TypeScript) — `.tsx` / `.ts`
 
-Proceed with all 21 dimensions.
+Proceed with all 20 dimensions.
 
 ---
 
@@ -60,19 +60,19 @@ Tell the user plainly, then proceed:
 
 > "Your project is in JavaScript. I'll convert it to TypeScript first — this gives your developer proper type safety and makes the handoff cleaner. Then I'll run the full production pass on the TypeScript version."
 
-Read and follow `references/jsx-to-tsx-migration.md` to migrate, THEN run the 21 dimensions on the resulting TypeScript codebase. Because migration happens first, everything downstream is TypeScript — there is no JavaScript path through the dimensions, and PropTypes are never used (TypeScript interfaces replace them entirely).
+Read and follow `references/jsx-to-tsx-migration.md` to migrate, THEN run the 20 dimensions on the resulting TypeScript codebase. Because migration happens first, everything downstream is TypeScript — there is no JavaScript path through the dimensions, and PropTypes are never used (TypeScript interfaces replace them entirely).
 
 ---
 
 ## Next.js — `next.config.*` present or `next` in `package.json`
 
-Proceed with all 21 dimensions, applying the Next.js overrides listed later in this document. If the Next.js project is in JavaScript, migrate to TypeScript first, same as above.
+Proceed with all 20 dimensions, applying the Next.js overrides listed later in this document. If the Next.js project is in JavaScript, migrate to TypeScript first, same as above.
 
 ---
 
 ## Plain HTML / CSS / JS — no `package.json`, or only `.html` / `.css` files
 
-The project isn't React yet, but the UI work has value. vibe-to-prod can convert it to a production-ready Vite + React + TypeScript project — the HTML becomes React components, inline styles become design tokens, and the result goes through the full 21-dimension pass.
+The project isn't React yet, but the UI work has value. vibe-to-prod can convert it to a production-ready Vite + React + TypeScript project — the HTML becomes React components, inline styles become design tokens, and the result goes through the full 20-dimension pass.
 
 Tell the designer:
 
@@ -82,7 +82,7 @@ Tell the designer:
 
 1. Scaffold a Vite + React + TypeScript project (Path A from `references/scaffold.md`)
 2. Convert HTML to React — read and follow `references/html-to-react.md`
-3. Run the 21 dimensions on the resulting React codebase
+3. Run the 20 dimensions on the resulting React codebase
 
 ---
 
@@ -181,7 +181,7 @@ When the developer connects real APIs, they change only the function body inside
 
 ---
 
-# The 21-Dimension Framework
+# The 20-Dimension Framework
 
 ## Structure & Separation
 
@@ -304,9 +304,13 @@ export async function getPatients(): Promise<ApiResponse<Patient[]>> {
 - Consolidate into reducer-based state with explicit action schemas. Allows developers to hook up Redux or Zustand instantly.
 - **Provider-mount safety:** when extracting state into a new context provider, you MUST mount that provider in the routing/app tree so it wraps every component that consumes its hook. Creating the provider and hook files is not enough — an unmounted provider makes the consuming hook throw at runtime, killing the screen, while build and tests still pass. After any provider change, trace: does this provider wrap every component calling its hook? Verify in the browser, not just the build.
 
-### 6. Read-Only / Role-Based Access Control
+### 6. Read-Only / Role-Based Access Control (conditional)
 
-- Use the HTML `inert` attribute to block UI interaction for read-only roles.
+**Only applies if the app actually has roles or read-only states.** Many prototypes have no concept of permissions — if so, skip this dimension entirely and don't flag its absence as a problem. Check first: does the app distinguish viewer/editor/admin, or have any read-only mode? If not, this dimension is N/A.
+
+If the app does have roles:
+
+- Use the HTML `inert` attribute to block UI interaction for read-only roles (one declaration on a container beats per-element `disabled` props, which silently miss newly-added elements).
 - Define roles as a union type in `domain.ts`.
 
 ### 7. Backend Integration Markers
@@ -317,12 +321,20 @@ export async function getPatients(): Promise<ApiResponse<Patient[]>> {
 
 ## UI Quality & Performance
 
-### 8. Component Library Compliance
+### 8. Component Library Compliance & Reuse
 
-- **Actively scan** for reinvented UI primitives (dropdowns, modals, tooltips, tabs, popovers, date pickers, select menus).
-- Replace with **shadcn/ui** or **Radix UI** equivalents, preserving visual styling.
-- Preserve genuine custom components.
-- **Do not auto-pass this dimension.** If no scan was performed, mark as unevaluated.
+The core problem: vibecoding produces duplicate components for the same thing (three different dropdowns, two custom modals) and hand-rolled primitives that a standard library does better and a developer would have to maintain. Don't hand off bespoke UI when a standard exists.
+
+The rule, in priority order:
+
+1. **Reuse what's already in the codebase.** If a component for this purpose already exists, use it — never create a second one that does the same thing. Duplicate components for the same job is the #1 issue to fix here.
+2. **If none exists, import from shadcn/ui (or Radix).** Don't hand-roll a dropdown, modal, tooltip, tabs, popover, date picker, or select menu — these are solved primitives.
+3. **Preserve genuine domain components.** A custom data grid or domain-specific visualization is legitimate; don't replace those.
+
+- **Actively scan** for reinvented primitives and for duplicate components serving the same purpose across folders.
+- Replace reinvented primitives with shadcn/Radix equivalents, preserving visual styling.
+- Consolidate duplicates into one shared component.
+- **Do not auto-pass.** If no scan was performed, mark as unevaluated.
 
 ### 9. Design Token Compliance
 
@@ -337,37 +349,57 @@ Covers **colors, spacing, sizing, typography, and all visual values.** Not just 
   - CSS file raw pixels (`margin: 16px`, `font-size: 13px`, `border-radius: 8px`)
 - **Defensive Tailwind Snapping:** Snap arbitrary values to nearest standard Tailwind scale only if visual shift < 1px. Otherwise extract to a semantic CSS variable.
 
-### 10. Destructive Action Safety
+### 10. The Missing Cases — Destructive, Empty, Error States
 
-- Gate all deletions, resets, or irreversible state changes behind `ConfirmDialog` or "Toast with Undo."
+Vibecoding builds the happy path. The designer demos the flow that works and never hits the cases where data is missing, an action is destructive, or something fails — so those cases never get built. This dimension catches what vibecoding structurally omits. A complete UI handles them; a prototype usually doesn't.
 
-### 11. Routing & Navigation (`react-router`)
+- **Destructive actions:** gate all deletions, resets, or irreversible changes behind `ConfirmDialog` or "Toast with Undo." Vibecoded prototypes almost always have a delete button with no confirmation.
+- **Empty states:** every list, table, or data view needs a "no data yet" state — not a blank area or a crash on an empty array.
+- **Error states:** every action that can fail needs a visible failure path — not a silent dead-end.
 
-- Replace conditional page rendering with declarative `react-router-dom` paths.
-- Implement lazy loading (`React.lazy`) for heavy route containers.
-- Set up Route Guards for authenticated/role-based views.
+(Loading states are covered in dimension 15. Together, 10 and 15 cover the four cases vibecoding forgets: destructive, empty, error, loading.)
 
-### 12. Component Performance
+### 11. Routing & Navigation (conditional)
 
-- `useMemo` for expensive filtering, sorting, calculations.
-- `useCallback` for event handlers passed to children.
-- `React.memo` on heavy list items, cards, or data grid rows.
+**First check: is this a single-page or multi-page app?** A single-screen prototype doesn't need routing — skip this dimension, don't flag its absence.
+
+If multi-page:
+
+- Is it already using a router? If yes, leave it (don't force a switch to a different router — that's the dev's choice).
+- If it's switching views with conditional rendering (`if (page === 'home')`) and no router, replace with declarative `react-router-dom` paths. This is the one case where forcing react-router is right — conditional-render navigation blocks deep-linking and guards.
+- Lazy-load heavy route containers (`React.lazy`).
+
+### 12. Expensive Operations (narrow)
+
+**Do NOT add `useMemo`/`useCallback`/`React.memo` as a blanket practice.** React's own guidance discourages manual memoization — it's an anti-pattern when applied everywhere, and React 19's compiler handles it automatically. Missing memoization is NOT a finding. A developer profiles and adds it where measured.
+
+Only flag the narrow real case: a genuinely expensive operation (sorting/filtering thousands of rows, heavy computation) that runs on every render or keystroke AND will visibly lag with real data volumes. This is rare in a prototype. If you don't see a concrete performance problem, this dimension passes — don't manufacture memoization work.
 
 ## Robustness & Production Readiness
 
-### 13. Accessibility (a11y) Baseline
+### 13. Accessibility & Readability Baseline
+
+The most common vibecoding failure here is **unreadable contrast** — an agent pairs a dark background with dark foreground text (or light-on-light), producing text nobody can read. That's not abstract compliance, it's broken UI. Check this first:
+
+- **Color contrast:** text must be readable against its background (WCAG AA: 4.5:1 for body text). Flag any dark-on-dark or light-on-light pairing.
+
+Then the standard baseline:
 
 - Eliminate "div soup." Use semantic HTML5 (`<nav>`, `<main>`, `<header>`, `<button>`, `<aside>`).
 - Interactive elements need `aria-label` or `aria-labelledby`.
-- Keyboard focus: `tabIndex`, visible focus states, focus trapping in modals.
+- Keyboard focus: visible focus states, focus trapping in modals.
 - `aria-live` regions for dynamic updates.
 
-### 14. Linting, Formatting & Code Quality
+### 14. Code Quality (top-tier — non-negotiable)
 
-The codebase is TypeScript (migrated first if it arrived as JS), so:
+The codebase is TypeScript (migrated first if it arrived as JS). Code quality is held to a high bar — a developer should open any file and find it clean:
 
-- Eradicate `any` types. Strict interfaces everywhere.
-- Organized imports. ESLint/Prettier compliance.
+- **Zero `any` types.** Strict, complete interfaces. `any` defeats the entire point of TypeScript.
+- **No `// @ts-ignore` or `as any` escape hatches** — each one hides a real bug.
+- Organized, deduplicated imports. Absolute path aliases (`@/*`), never `../../` chains.
+- No dead code, no unused variables, no commented-out blocks left behind.
+- Consistent patterns — same approach to the same problem across files.
+- ESLint/Prettier clean.
 - No PropTypes — ever. TypeScript interfaces are the type contracts; PropTypes are redundant and must not be added. If migrating from JS, PropTypes are removed and replaced by interfaces, not kept alongside them.
 
 ### 15. Error Boundaries & Component Resilience
@@ -383,20 +415,7 @@ The codebase is TypeScript (migrated first if it arrived as JS), so:
 - **Error state:** what happens when the data call fails (fallback message — not a crash)
 - **Empty state:** what appears when there's no data (helpful message — not invisible component)
 
-### 16. QA: Test Selectors & Test Existence
-
-**Test selectors:**
-
-- `data-testid` on all primary interactive elements, form controls, and major layout sections.
-
-**Test existence:**
-
-- Check if any test files exist (`*.test.*`, `*.spec.*`, `__tests__/` folders)
-- Check if a test runner is configured in `package.json` (vitest, jest, playwright, cypress)
-- If no tests exist at all, flag as Medium severity — a developer inherits a codebase with no safety net for refactoring
-- If tests exist, note what's covered and what's not. Don't audit test quality — just confirm the safety net exists.
-
-### 17. Dependency, Environment & Onboarding Hygiene
+### 16. Dependency, Environment & Onboarding Hygiene
 
 - Clean unused packages. Pin critical dependency versions.
 - Provide `.env.example` with all required environment variables stubbed.
@@ -407,7 +426,7 @@ The codebase is TypeScript (migrated first if it arrived as JS), so:
   - It mentions any required environment variables
   - If README is missing or only a default template, flag as Medium severity
 
-### 18. File Hygiene & Icon Consolidation
+### 17. File Hygiene & Icon Consolidation
 
 - Delete orphaned files, unused imports, dead code.
 - **Icon replacement (lookup first, extract last):**
@@ -419,7 +438,7 @@ The codebase is TypeScript (migrated first if it arrived as JS), so:
   6. Only extract to a custom icon file in `components/icons/` if no reasonable library equivalent exists
   7. Never leave raw multi-line SVG coordinate paths inside UI components
 
-### 19. Component Production Readiness
+### 18. Component Production Readiness
 
 This dimension checks whether components survive real-world conditions, not just the prototype's mock data.
 
@@ -448,7 +467,7 @@ This dimension checks whether components survive real-world conditions, not just
 - Report honestly: "grep flagged 23 components with potential null-access; deep-read the 8 highest-risk; recommend reviewing the remaining 15"
 - Never report "passed" based on a small sample — always state how many were flagged vs how many were deep-read
 
-### 20. Security Basics
+### 19. Security Basics
 
 Frontend prototypes often contain security holes that get inherited by the developer. Check for:
 
@@ -475,7 +494,7 @@ Frontend prototypes often contain security holes that get inherited by the devel
 
 **In audit mode:** flag any hardcoded secret as High severity — this is a real security risk, not a code quality issue. Flag `dangerouslySetInnerHTML` as Medium unless it's used with sanitized content.
 
-### 21. Design Quality (No AI Slop)
+### 20. Design Quality (No AI Slop)
 
 This is the dimension designers care about most — it protects visual craft, not just code structure. Vibe-coded UIs drift toward generic "AI dashboard" tropes and inconsistent styling. Check for and flag:
 
@@ -619,15 +638,15 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 9. **Dimension 8 requires active scanning.** Search for reinvented primitives using the grep patterns in audit-checklist.md. If no scan was performed, mark as unevaluated — not passing.
 
-10. **Dimension 19 coverage.** Run null-access and fixed-width greps across ALL components. Deep-read the highest-risk flagged candidates, capped at 8. Report how many were flagged vs deep-read — never report "passed" on a small sample.
+10. **Dimension 18 coverage.** Run null-access and fixed-width greps across ALL components. Deep-read the highest-risk flagged candidates, capped at 8. Report how many were flagged vs deep-read — never report "passed" on a small sample.
 
-11. **Dimension 20 requires security scanning.** Run the security grep patterns. Flag any hardcoded secret as High immediately.
+11. **Dimension 19 requires security scanning.** Run the security grep patterns. Flag any hardcoded secret as High immediately.
 
-12. **Dimension 21 (design quality) — explain fully, never compress.** This is the designer's home turf. Flag AI-slop patterns, color-token drift, and severity-vs-metric color issues in full clear prose. These are usually Medium/Low but matter most to the audience.
+12. **Dimension 20 (design quality) — explain fully, never compress.** This is the designer's home turf. Flag AI-slop patterns, color-token drift, and severity-vs-metric color issues in full clear prose. These are usually Medium/Low but matter most to the audience.
 
 13. **Every finding must include a severity (High/Medium/Low) with justification.** Not just the label — one sentence explaining why.
 
-14. **Trust grep output — don't over-read files.** The grep evidence pack proves most findings on its own. Only deep-read a source file when the finding genuinely requires seeing code structure (dimension 19 null-handling, confirming a god-component's internal organization). Reading files to "double-check" a finding grep already proved wastes tokens. Cap verification reads to what's strictly necessary.
+14. **Trust grep output — don't over-read files.** The grep evidence pack proves most findings on its own. Only deep-read a source file when the finding genuinely requires seeing code structure (dimension 18 null-handling, confirming a god-component's internal organization). Reading files to "double-check" a finding grep already proved wastes tokens. Cap verification reads to what's strictly necessary.
 
 15. **Design fidelity note:** In audit mode, visual fidelity cannot be verified without running the app. State this once at the top: "Visual fidelity should be verified in the browser after any refactoring." Do not mark it as "AT RISK."
 
@@ -664,11 +683,11 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 ## Refactor mode (default)
 
-Full 21-dimension pass. Refactor while preserving design intent. The `// @backend` annotations in `api.ts` are the only integration contract — no separate document is generated.
+Full 20-dimension pass. Refactor while preserving design intent. The `// @backend` annotations in `api.ts` are the only integration contract — no separate document is generated.
 
 **Pre-flight:** Run `node --version` first. If Node.js is missing, stop and direct the designer to install it (see pre-flight section at top of this file).
 
-**If the codebase is plain HTML (no React):** don't refuse — convert it. Scaffold a Vite + React + TypeScript project first (Path A from `references/scaffold.md`), convert the HTML files into React components (see Step 0 HTML detection for the conversion flow), then continue with the 21 dimensions on the resulting React codebase.
+**If the codebase is plain HTML (no React):** don't refuse — convert it. Scaffold a Vite + React + TypeScript project first (Path A from `references/scaffold.md`), convert the HTML files into React components (see Step 0 HTML detection for the conversion flow), then continue with the 20 dimensions on the resulting React codebase.
 
 **Step zero — TypeScript migration is a HARD GATE (if the codebase is JSX/JS).** This is not a plan item that can be reordered or deferred — it is a blocking precondition. If the codebase is JSX/JS (React but not TypeScript), you MUST complete the full TypeScript migration BEFORE touching any other dimension. Do not fix the data layer, API envelopes, state, bundling, or anything else first. Nothing else happens until migration is done.
 
@@ -739,7 +758,7 @@ For a designer who can't read code, that browser click-through is the real test.
 - Target fixed widths that genuinely break responsive layout; leave acceptable micro-constraints
 - Fix data flow before routing — data boundary cleanup gives bigger handoff value
 - Add memoization only where it measurably helps
-- **Don't chase non-blocking warnings.** A "large bundle chunk" warning is not a functional break and is not one of the 21 dimensions. Don't spend multiple passes optimizing Vite chunks unless the designer asked — it burns credits on something that doesn't affect handoff readiness.
+- **Don't chase non-blocking warnings.** A "large bundle chunk" warning is not a functional break and is not one of the 20 dimensions. Don't spend multiple passes optimizing Vite chunks unless the designer asked — it burns credits on something that doesn't affect handoff readiness.
 - The goal is a codebase a developer can integrate, not one that satisfies every linter rule at the cost of churn
 
 ```

@@ -195,7 +195,6 @@ Wrap major views in an error boundary so one failure doesn't crash everything.
 
 ## 16. Hygiene & Handoff
 
-- `data-testid` on primary interactive elements and major sections so QA can automate
 - No orphaned files, unused imports, or `console.log` in production code
 - Inline SVGs: use a library icon (lucide-react) first; only create a custom icon file if no equivalent exists
 - README has install + run instructions so a developer can start in 5 minutes

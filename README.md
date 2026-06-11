@@ -17,7 +17,7 @@ vibe-to-prod takes the UI you've already built and makes it production-grade:
 - **Uses real components** — replaces hand-rolled UI with shadcn/Radix components developers trust
 - **Keeps your design** — your colors, spacing, and layout are preserved exactly; only the code underneath changes
 - **Captures your design system** — extracts a `design.md` that becomes the single source of truth for your brand
-- **Checks 21 production dimensions** — security, accessibility, error handling, routing, testing, and more
+- **Checks 20 production dimensions** — security, accessibility, error & empty states, routing, design quality, and more
 - **Hands off cleanly** — your developer opens the project and starts integrating immediately
 
 The result: weeks of developer rebuild time saved.
@@ -37,7 +37,7 @@ The result: weeks of developer rebuild time saved.
 vibe-to-prod is an [agentskills.io](https://agentskills.io)-compatible skill. It works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other compatible agents.
 
 ```bash
-npx skills add manish-uxai/vibe-to-prod
+npx skills add Manish-UXUI/vibe-to-prod
 ```
 
 You'll need [Node.js](https://nodejs.org) installed. If you don't have it, the skill will detect that and walk you through installing it.
@@ -96,14 +96,14 @@ This file is the **source of truth**. The code's styling is generated from it. W
 
 ---
 
-## What gets checked (the 21 dimensions)
+## What gets checked (the 20 dimensions)
 
-The skill evaluates your code across 21 production dimensions, grouped into:
+The skill evaluates your code across 20 production dimensions, grouped into:
 
 - **Architecture & data** — component structure, clean data extraction, typed API stubs, state management
 - **UI quality** — design tokens, component library compliance, no AI-slop styling, performance
 - **Robustness** — accessibility, error boundaries, loading/empty states, production resilience
-- **Handoff & security** — test selectors, dependency hygiene, security basics, design quality
+- **Handoff & security** — dependency hygiene, onboarding setup, security basics, design quality
 
 Every finding explains what it is and why it matters — so you learn as you go, growing from designer toward design engineer.
 
