@@ -1,6 +1,8 @@
 # JSX to TSX Migration Guide
 
-> Read this file when the user has confirmed they want to migrate their JavaScript React codebase to TypeScript before handoff. Follow these steps in order. Do not skip steps. Do not introduce `any` types as a shortcut — a migration full of `any` is worse than staying in JavaScript.
+> **This is the mandatory first step for any JavaScript React codebase.** vibe-to-prod always outputs TypeScript — when the stack is JSX/JS, the codebase is migrated to TypeScript before any other dimension work. This is automatic; the user is not asked. Follow these steps in order. Do not skip steps. Do not introduce `any` types as a shortcut — a migration full of `any` is worse than staying in JavaScript.
+>
+> **This migration satisfies dimension 14 completely.** Once migrated, every component has TypeScript interfaces describing its props. Do NOT add PropTypes afterward — interfaces replace them entirely. PropTypes on a TypeScript codebase is redundant, conflicting, and wrong.
 
 ---
 
@@ -8,10 +10,10 @@
 
 Before writing a single line of TypeScript:
 
-- [ ] Confirm the user wants to migrate (don't assume from stack detection alone)
 - [ ] Check `package.json` — TypeScript may already be installed
 - [ ] Run `git status` — ensure the working tree is clean so the migration is its own commit
 - [ ] Note any existing JSDoc typedefs in `domain.js` — these become TypeScript interfaces directly
+- [ ] Note any existing PropTypes — these become TypeScript interfaces and the PropTypes blocks are then removed
 
 ---
 
@@ -22,6 +24,7 @@ npm install --save-dev typescript @types/react @types/react-dom
 ```
 
 If the project uses Vite (check `vite.config.js`):
+
 ```bash
 npm install --save-dev @types/node
 ```
@@ -82,15 +85,15 @@ If using Vite, also create `tsconfig.node.json`:
 Rename `vite.config.js` → `vite.config.ts` and add path alias:
 
 ```ts
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
 });
@@ -103,6 +106,7 @@ export default defineConfig({
 This is the most important file. Every JSDoc typedef becomes a TypeScript interface.
 
 **Before (JSDoc):**
+
 ```js
 /**
  * @typedef {Object} Patient
@@ -114,16 +118,18 @@ This is the most important file. Every JSDoc typedef becomes a TypeScript interf
 ```
 
 **After (TypeScript):**
+
 ```ts
 export interface Patient {
   id: string;
   name: string;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   notes?: string;
 }
 ```
 
 Rules for this step:
+
 - Every `@typedef` becomes an `export interface`
 - `@property {string} [field]` (optional) becomes `field?: string`
 - Union types like `'active' | 'inactive'` stay identical
@@ -137,6 +143,7 @@ Rules for this step:
 Add return types to every function using the interfaces from `domain.ts`.
 
 **Before:**
+
 ```js
 // @backend GET /api/patients
 export async function getPatients() {
@@ -146,6 +153,7 @@ export async function getPatients() {
 ```
 
 **After:**
+
 ```ts
 // @backend GET /api/patients
 // Auth: Bearer token (JWT)
@@ -157,6 +165,7 @@ export async function getPatients(): Promise<ApiResponse<Patient[]>> {
 ```
 
 Add the `ApiResponse` generic type to `domain.ts`:
+
 ```ts
 export interface ApiResponse<T> {
   data: T;
@@ -173,6 +182,7 @@ export interface ApiResponse<T> {
 ## Step 6: Rename component files
 
 Rename files in batches, not all at once:
+
 - `Component.jsx` → `Component.tsx`
 - `hook.js` → `hook.ts` (for files with no JSX)
 - `utils.js` → `utils.ts`
@@ -186,6 +196,7 @@ Start with leaf components (no children) and work upward to avoid cascading erro
 ## Step 7: Add prop interfaces to every component
 
 **Before:**
+
 ```jsx
 function PatientCard({ patient, onSelect }) {
   return <div onClick={() => onSelect(patient.id)}>{patient.name}</div>;
@@ -193,6 +204,7 @@ function PatientCard({ patient, onSelect }) {
 ```
 
 **After:**
+
 ```tsx
 interface PatientCardProps {
   patient: Patient;
@@ -205,6 +217,7 @@ function PatientCard({ patient, onSelect }: PatientCardProps) {
 ```
 
 Rules for this step:
+
 - Every component gets a `ComponentNameProps` interface
 - Event handlers typed as `() => void`, `(id: string) => void`, `(e: React.ChangeEvent<HTMLInputElement>) => void` etc.
 - `children` typed as `React.ReactNode`
@@ -216,6 +229,7 @@ Rules for this step:
 ## Step 8: Type React hooks
 
 **useState:**
+
 ```ts
 // Before
 const [patients, setPatients] = useState([]);
@@ -225,17 +239,20 @@ const [patients, setPatients] = useState<Patient[]>([]);
 ```
 
 **useRef:**
+
 ```ts
 const inputRef = useRef<HTMLInputElement>(null);
 ```
 
 **useContext:**
+
 ```ts
 const context = useContext(PatientContext);
 // PatientContext should be typed: React.createContext<PatientContextType | null>(null)
 ```
 
 **Event handlers:**
+
 ```ts
 const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   setValue(e.target.value);
@@ -254,12 +271,12 @@ As part of migration, replace all `../../` relative imports with `@/` aliases:
 
 ```ts
 // Before
-import { Patient } from '../../types/domain';
-import { getPatients } from '../../../api/patients';
+import { Patient } from "../../types/domain";
+import { getPatients } from "../../../api/patients";
 
 // After
-import { Patient } from '@/domain';
-import { getPatients } from '@/api';
+import { Patient } from "@/domain";
+import { getPatients } from "@/api";
 ```
 
 ---
@@ -270,12 +287,12 @@ After `domain.ts` is stable, add runtime validation schemas in `src/schemas/`:
 
 ```ts
 // src/schemas/patient.ts
-import { z } from 'zod';
+import { z } from "zod";
 
 export const PatientSchema = z.object({
   id: z.string(),
   name: z.string(),
-  status: z.enum(['active', 'inactive']),
+  status: z.enum(["active", "inactive"]),
   notes: z.string().optional(),
 });
 
@@ -283,8 +300,9 @@ export type Patient = z.infer<typeof PatientSchema>;
 ```
 
 Update `domain.ts` to re-export from schemas so there's one source of truth:
+
 ```ts
-export type { Patient } from '@/schemas/patient';
+export type { Patient } from "@/schemas/patient";
 ```
 
 ---
@@ -299,12 +317,12 @@ Fix every error. Do not suppress errors with `// @ts-ignore` or `as any`. Each e
 
 Common errors and fixes:
 
-| Error | Fix |
-| :--- | :--- |
-| `Object is possibly undefined` | Add optional chaining `?.` or null check |
-| `Type 'string' is not assignable to type 'never'` | Add explicit type to `useState` |
-| `Property X does not exist on type Y` | Update the interface or fix the access pattern |
-| `Parameter implicitly has 'any' type` | Add explicit parameter type |
+| Error                                             | Fix                                            |
+| :------------------------------------------------ | :--------------------------------------------- |
+| `Object is possibly undefined`                    | Add optional chaining `?.` or null check       |
+| `Type 'string' is not assignable to type 'never'` | Add explicit type to `useState`                |
+| `Property X does not exist on type Y`             | Update the interface or fix the access pattern |
+| `Parameter implicitly has 'any' type`             | Add explicit parameter type                    |
 
 ---
 
@@ -314,7 +332,7 @@ Common errors and fixes:
 npm run dev
 ```
 
-Verify the app renders identically to before migration. TypeScript migration must not change any visual output. If something looks different, the migration introduced a bug — find and fix it before proceeding to the 19-dimension audit.
+Verify the app renders identically to before migration. TypeScript migration must not change any visual output. If something looks different, the migration introduced a bug — find and fix it before proceeding to the 21-dimension audit.
 
 ---
 

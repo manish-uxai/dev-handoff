@@ -1,19 +1,23 @@
 # Scaffold Mode: Greenfield Project Setup
 
-> Read this file when the user runs `/vibe-to-prod scaffold`. They are starting a new project from scratch and want the production-ready architecture set up before building any UI.
+> Read this file when the user runs `/vibe-to-prod scaffold` or `/vibe-to-prod start`, or when **converting a plain HTML project to React** (Step 0 HTML detection). In all cases, the goal is the same: set up the full Vite + React + TypeScript folder structure, config files, and base architecture.
 >
-> Your job is to set up the full folder structure, config files, and base architecture — so every component the designer builds lands in the right place from day one, with zero refactoring needed later.
+> For greenfield: every component the designer builds lands in the right place from day one, with zero refactoring needed later.
+> For HTML conversion: the scaffold creates the React project structure, then the agent converts the HTML files into React components inside it.
 
 ---
 
-## Step 0: Ask two questions before scaffolding
+## Pre-flight: Node.js check
 
-Before writing any files, ask:
+Before scaffolding, run `node --version`. If Node.js is not installed, stop and direct the designer to install it (see SKILL.md pre-flight section for the exact message). Scaffolding requires Node for `npm create vite`, dependency installation, and running the dev server.
 
-1. "Are you using TypeScript or JavaScript?" — Default to TypeScript unless they say otherwise.
-2. "Are you using Vite, Next.js, or something else?" — Default to Vite + React unless they say otherwise.
+---
 
-Then follow the matching setup path below.
+## Step 0: Default stack — no questions needed
+
+vibe-to-prod always scaffolds **Vite + React + TypeScript**. Don't ask about JS vs TS, and don't ask Vite vs Next.js unless the user explicitly mentions Next.js. A designer starting fresh gets the default stack — decision already made for them, zero friction.
+
+Only deviate to Next.js (Path B) if the user explicitly says they need it (SSR, server components, file-based routing). Otherwise: Path A.
 
 ---
 
@@ -69,15 +73,15 @@ Add path aliases:
 ### Step 4: Update `vite.config.ts`
 
 ```ts
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
 });
@@ -117,6 +121,7 @@ touch src/domain.ts src/api/index.ts
 ### Step 6: Create base files
 
 **`src/domain.ts`** — empty, ready for interfaces:
+
 ```ts
 // Add your data interfaces here
 // Example:
@@ -136,21 +141,23 @@ export interface ApiResponse<T> {
 ```
 
 **`src/api/index.ts`** — delay utility + first stub:
+
 ```ts
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // @backend GET /api/health
 // Auth: None
 // Response: { data: { status: string } }
 export async function checkHealth(): Promise<ApiResponse<{ status: string }>> {
   await delay(300);
-  return { data: { status: 'ok' }, meta: {} };
+  return { data: { status: "ok" }, meta: {} };
 }
 ```
 
 **`src/api/hooks/index.ts`** — base query client setup:
+
 ```ts
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient } from "@tanstack/react-query";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -163,26 +170,28 @@ export const queryClient = new QueryClient({
 ```
 
 **`src/main.tsx`** — wrap app with QueryClientProvider:
-```tsx
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { queryClient } from '@/api/hooks';
-import App from './App';
-import './index.css';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+```tsx
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/api/hooks";
+import App from "./App";
+import "./index.css";
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <App />
     </QueryClientProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );
 ```
 
 **`src/components/ConfirmDialog.tsx`** — reusable destructive action guard:
+
 ```tsx
-import * as Dialog from '@radix-ui/react-dialog';
+import * as Dialog from "@radix-ui/react-dialog";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -199,7 +208,7 @@ export function ConfirmDialog({
   onCancel,
   title,
   description,
-  confirmLabel = 'Confirm',
+  confirmLabel = "Confirm",
 }: ConfirmDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onCancel}>
@@ -207,10 +216,22 @@ export function ConfirmDialog({
         <Dialog.Overlay className="fixed inset-0 bg-black/40" />
         <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg p-6 shadow-xl w-[400px]">
           <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
-          <Dialog.Description className="mt-2 text-sm text-gray-600">{description}</Dialog.Description>
+          <Dialog.Description className="mt-2 text-sm text-gray-600">
+            {description}
+          </Dialog.Description>
           <div className="mt-4 flex justify-end gap-3">
-            <button onClick={onCancel} className="px-4 py-2 text-sm rounded border">Cancel</button>
-            <button onClick={onConfirm} className="px-4 py-2 text-sm rounded bg-red-600 text-white">{confirmLabel}</button>
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 text-sm rounded border"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className="px-4 py-2 text-sm rounded bg-red-600 text-white"
+            >
+              {confirmLabel}
+            </button>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
@@ -232,36 +253,11 @@ Tell the user:
 
 > "Your project is scaffolded and ready. Every component you build should go in `src/components/`. Pages go in `src/pages/`. Data shapes go in `src/domain.ts`. API connections go in `src/api/index.ts`.
 >
-> When you're ready to prepare the project for developer handoff, run `/vibe-to-prod audit` and I'll check everything against the 19-dimension framework."
+> When you're ready to prepare the project for developer handoff, run `/vibe-to-prod audit` and I'll check everything against the 21-dimension framework."
 
 ---
 
-## Path B: Vite + React + JavaScript
-
-Same as Path A with these differences:
-
-- Skip `tsconfig.json` TypeScript strict settings — create `jsconfig.json` instead:
-```json
-{
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
-    "checkJs": true,
-    "jsx": "react-jsx"
-  },
-  "include": ["src"]
-}
-```
-- Use `domain.js` with JSDoc typedefs instead of `domain.ts`
-- Use `api/index.js` instead of `api/index.ts`
-- All component files use `.jsx` instead of `.tsx`
-- Skip Zod (can add later) — use PropTypes for component contracts instead
-
----
-
-## Path C: Next.js
+## Path B: Next.js
 
 ```bash
 npx create-next-app@latest my-app --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
@@ -271,12 +267,14 @@ cd my-app
 This command sets up TypeScript, Tailwind, ESLint, App Router, `src/` directory, and `@/*` path aliases in one step.
 
 Then install additional dependencies:
+
 ```bash
 npm install @tanstack/react-query zod lucide-react zustand
 npx shadcn@latest init
 ```
 
 Folder structure for Next.js:
+
 ```
 src/
 ├── app/                  # App Router pages and layouts
@@ -299,26 +297,29 @@ src/
 ```
 
 Wrap the root layout with QueryClientProvider in a client component:
+
 ```tsx
 // src/components/Providers.tsx
-'use client';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { queryClient } from '@/api/hooks';
+"use client";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/api/hooks";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 }
 ```
 
 ```tsx
 // src/app/layout.tsx
-import { Providers } from '@/components/Providers';
+import { Providers } from "@/components/Providers";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
       <body>

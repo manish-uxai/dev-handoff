@@ -1,91 +1,146 @@
-# Vibe-to-Prod
+# vibe-to-prod
 
-Universal [Agent Skill](https://agentskills.io) that transforms designer-built vibecoded prototypes into production-ready, frontend-only codebases — ready for backend teams to plug in and ship.
+**Turn your vibe-coded prototype into production-ready code your developer can actually ship.**
 
-Works across **Claude Code**, **OpenAI Codex**, **Cursor**, **GitHub Copilot**, and any agent supporting the open `SKILL.md` format.
+You designed something great — in Figma Make, with an AI agent, or by hand. Now it needs to become real software. vibe-to-prod hardens your prototype into clean, typed, production-ready React so a developer can plug in real data and ship it, instead of rebuilding your UI from scratch.
 
-**Repository:** [github.com/manish-uxai/vibe-to-prod](https://github.com/manish-uxai/vibe-to-prod)
+No terminal expertise required. You talk to your AI agent in plain English; the skill does the rest.
 
-## The Problem
-
-Designers build high-fidelity prototypes in code (Bolt, v0, Lovable, Replit, Claude Artifacts). The UI looks final, but the codebase is messy. Developers won't integrate it — they rebuild from Figma instead.
-
-**Vibe-to-Prod breaks that cycle.** Harden the architecture under the designer's UI so a frontend engineer opens the project, plugs in APIs, and ships. Zero visual rewrites.
+---
 
 ## What it does
 
-The **18-Dimension Handoff Framework** (v3.1) enforces:
+vibe-to-prod takes the UI you've already built and makes it production-grade:
 
-- Figma-less direct-to-code handoff — prototype IS the production UI
-- Design intent preserved; implementation improved underneath
-- shadcn/Radix replacement for reinvented primitives
-- Typed `api.ts` stubs with `// @backend` markers + `BACKEND_CONTRACT.md`
-- Evidence-based audits with required grep patterns
-- JavaScript codebases flagged for TypeScript migration
+- **Connects your data properly** — moves scattered data logic into one clean layer a developer can swap for real APIs in one place
+- **Always outputs TypeScript** — gives your developer type safety and autocomplete; if your code is JavaScript or plain HTML, it's converted automatically
+- **Uses real components** — replaces hand-rolled UI with shadcn/Radix components developers trust
+- **Keeps your design** — your colors, spacing, and layout are preserved exactly; only the code underneath changes
+- **Captures your design system** — extracts a `design.md` that becomes the single source of truth for your brand
+- **Checks 21 production dimensions** — security, accessibility, error handling, routing, testing, and more
+- **Hands off cleanly** — your developer opens the project and starts integrating immediately
 
-See [`vibe-to-prod/SKILL.md`](vibe-to-prod/SKILL.md) for the full specification.
+The result: weeks of developer rebuild time saved.
 
-## Execution Modes
+---
 
-| Mode | Command | What it does |
-|------|---------|--------------|
-| **Audit** | `/vibe-to-prod audit` | Evidence-based report, no file changes |
-| **Refactor** | `/vibe-to-prod refactor` | Full 18-dimension pass + BACKEND_CONTRACT.md |
-| **Quick** | `/vibe-to-prod quick` | Structure + types + stubs only |
+## Who it's for
 
-## Install
+**Designers and PMs** who build UIs with AI tools (Figma Make, Cursor, Copilot, v0) and need to hand them to developers. This is the primary audience — you don't need to know how to code. You describe what you want; the skill makes it production-ready.
 
-```bash
-npx skills add manish-uxai/vibe-to-prod -g -y
-```
+**Developers** who inherit designer-built prototypes and want them hardened before integration, or who want a fast path from a vibe-coded proof-of-concept to a clean codebase.
 
-Project-only:
+---
 
-```bash
-npx skills add manish-uxai/vibe-to-prod -y
-```
+## Installation
 
-### PromptScript warning
-
-If you see `PromptScript does not support global skill installation` — skill still installed to `~/.agents/skills/vibe-to-prod`. Safe to ignore, or use:
+vibe-to-prod is an [agentskills.io](https://agentskills.io)-compatible skill. It works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other compatible agents.
 
 ```bash
-npx skills add manish-uxai/vibe-to-prod -g -y -a universal
+npx skills add manish-uxai/vibe-to-prod
 ```
 
-## Manual install
+You'll need [Node.js](https://nodejs.org) installed. If you don't have it, the skill will detect that and walk you through installing it.
 
-Copy `vibe-to-prod/` to your agent skills path. **Directory name must match `name: vibe-to-prod` in frontmatter.**
+---
 
-| Agent | Global | Project |
-|-------|--------|---------|
-| Cursor | `~/.cursor/skills/vibe-to-prod/` | `.cursor/skills/vibe-to-prod/` |
-| Claude Code | `~/.claude/skills/vibe-to-prod/` | `.claude/skills/vibe-to-prod/` |
-| Codex | `~/.codex/skills/vibe-to-prod/` | `.codex/skills/vibe-to-prod/` |
-| GitHub Copilot | `~/.copilot/skills/vibe-to-prod/` | `.github/skills/vibe-to-prod/` |
+## Getting started
 
-## Usage
+Open your project in your IDE (VS Code, Cursor, etc.), then talk to your AI agent.
 
-| Agent | Example |
-|-------|---------|
-| Claude Code | `/vibe-to-prod audit src/pages/Dashboard.tsx` |
-| Cursor | "Use vibe-to-prod to refactor this prototype for backend handoff" |
-| Codex | `/vibe-to-prod quick src/` |
-| Copilot | "Audit this codebase against the vibe-to-prod 18-dimension framework" |
-
-## Repository structure
+### Starting fresh
 
 ```
-vibe-to-prod/
-├── README.md
-├── LICENSE
-└── vibe-to-prod/
-    ├── SKILL.md
-    └── references/
-        ├── audit-checklist.md
-        └── backend-contract-template.md
+/vibe-to-prod start
 ```
+
+Sets up a complete production-ready project (Vite + React + TypeScript + shadcn) and installs helpful companion skills. Start building features and they'll be production-ready from day one.
+
+### You have existing code (Figma Make, HTML, or React)
+
+```
+/vibe-to-prod
+```
+
+The skill detects what you have and hardens it. If it's JavaScript, it migrates to TypeScript first. If it's plain HTML, it converts to React. Then it runs the full production pass.
+
+Just say **"fix it all"** and it works through everything.
+
+### You want to see what needs fixing first
+
+```
+/vibe-to-prod audit
+```
+
+Produces a report — what's production-ready, what isn't, and a plain-language summary written for designers. Nothing is changed; it's a read-only health check.
+
+---
+
+## The modes
+
+| Command                                     | What it does                                                                        |
+| ------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `/vibe-to-prod start`                       | Greenfield — scaffold a new project, install companion skills, set up design system |
+| `/vibe-to-prod` or `/vibe-to-prod refactor` | Harden existing code (the default)                                                  |
+| `/vibe-to-prod audit`                       | Read-only report of production readiness                                            |
+| `/vibe-to-prod scaffold`                    | Set up project structure only                                                       |
+| `/vibe-to-prod quick`                       | Fast pass — structure, types, and data layer only                                   |
+
+---
+
+## design.md — your design system, in your language
+
+vibe-to-prod creates a `design.md` in your project: a human-readable document describing your colors, typography, spacing, and components. It's written in design language, not code.
+
+This file is the **source of truth**. The code's styling is generated from it. When you update `design.md`, the styles update to match. You can even paste a `design.md` from another project to apply a whole new design system.
+
+---
+
+## What gets checked (the 21 dimensions)
+
+The skill evaluates your code across 21 production dimensions, grouped into:
+
+- **Architecture & data** — component structure, clean data extraction, typed API stubs, state management
+- **UI quality** — design tokens, component library compliance, no AI-slop styling, performance
+- **Robustness** — accessibility, error boundaries, loading/empty states, production resilience
+- **Handoff & security** — test selectors, dependency hygiene, security basics, design quality
+
+Every finding explains what it is and why it matters — so you learn as you go, growing from designer toward design engineer.
+
+---
+
+## Companion files it creates
+
+| File            | Purpose                                                                        |
+| --------------- | ------------------------------------------------------------------------------ |
+| `design.md`     | Your design system source of truth                                             |
+| `guidelines.md` | Conventions your AI agent follows on every future feature, so code stays clean |
+
+After setup, add this to your agent's instructions so it stays on track:
+
+> "Read guidelines.md and design.md before building any feature. Follow the code conventions and use the design tokens."
+
+---
+
+## Requirements
+
+- **Node.js** — required to run React projects. [Download here](https://nodejs.org) if you don't have it.
+- **An agentskills.io-compatible agent** — Claude Code, Codex, Cursor, Copilot, etc.
+
+---
+
+## Output is always TypeScript
+
+vibe-to-prod always produces TypeScript. JavaScript and HTML inputs are converted automatically — no choice to make, no question asked. TypeScript is the production-handoff standard: it gives developers type safety, autocomplete, and confidence when refactoring. (If you specifically need a JavaScript-only output, this skill isn't the right fit.)
+
+---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT
+
+---
+
+## Feedback
+
+vibe-to-prod is built by a designer, for designers, with developers in mind. If something doesn't work the way you expect — or you have an idea — open an issue on the repo.
