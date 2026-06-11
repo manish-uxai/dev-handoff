@@ -326,13 +326,24 @@ Common errors and fixes:
 
 ---
 
-## Step 12: Run the codebase
+## Step 12: Run the codebase — runtime check, not just build
 
 ```bash
-npm run dev
+npm run build   # confirms it compiles
+npm run dev     # confirms it actually renders
 ```
 
-Verify the app renders identically to before migration. TypeScript migration must not change any visual output. If something looks different, the migration introduced a bug — find and fix it before proceeding to the 21-dimension audit.
+**Build passing is not enough.** A migration can compile cleanly and still break a screen at runtime. Start the dev server and confirm the app renders identically to before migration — click through the main screens. TypeScript migration must not change any visual output. If a screen is blank or throws, the migration introduced a bug — find and fix it before proceeding to the dimensions.
+
+**Verify migration completeness before declaring done:**
+
+- Zero `.jsx` files remain (`find src -name '*.jsx' | wc -l` returns 0)
+- Zero `.js` source files remain (excluding config)
+- `tsconfig.json` exists
+- `prop-types` removed from package.json and no `import PropTypes` remains
+- `tsc --noEmit` passes with no errors and no `any`
+
+Only when all of these are true is migration complete and the dimensions can begin.
 
 ---
 

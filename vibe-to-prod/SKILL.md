@@ -5,7 +5,7 @@ license: MIT
 compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Supports React and Next.js projects. JavaScript codebases are migrated to TypeScript automatically — output is always TypeScript. Other stacks trigger guided redirection.
 metadata:
   author: vibe-to-prod
-  version: "5.0.0"
+  version: "5.2.0"
   framework: 21-dimension-handoff
 ---
 
@@ -302,6 +302,7 @@ export async function getPatients(): Promise<ApiResponse<Patient[]>> {
 
 - Avoid chains of 5+ independent `useState` hooks.
 - Consolidate into reducer-based state with explicit action schemas. Allows developers to hook up Redux or Zustand instantly.
+- **Provider-mount safety:** when extracting state into a new context provider, you MUST mount that provider in the routing/app tree so it wraps every component that consumes its hook. Creating the provider and hook files is not enough — an unmounted provider makes the consuming hook throw at runtime, killing the screen, while build and tests still pass. After any provider change, trace: does this provider wrap every component calling its hook? Verify in the browser, not just the build.
 
 ### 6. Read-Only / Role-Based Access Control
 
@@ -648,6 +649,15 @@ Output format must follow [references/audit-checklist.md](references/audit-check
     - Security and design-system findings are in full clear prose, not compressed
     - The designer summary contains no untranslated jargon
 
+18. **End with a two-path choice.** After the designer summary, offer exactly two ways forward — no menu of individual tasks:
+
+    > **How would you like to proceed?**
+    >
+    > 1. **Fix it all** — say "fix it all" or "let's go" and I'll fix every finding in one continuous pass, then report back when it's done.
+    > 2. **Pick specific findings first** — tell me which to start with (e.g. "just the security and data issues") and I'll handle those, then check in about the rest.
+
+    Then stop and wait. The designer's reply routes into refactor mode (see the two paths there).
+
 ```
 /vibe-to-prod audit [file or directory]
 ```
@@ -660,19 +670,77 @@ Full 21-dimension pass. Refactor while preserving design intent. The `// @backen
 
 **If the codebase is plain HTML (no React):** don't refuse — convert it. Scaffold a Vite + React + TypeScript project first (Path A from `references/scaffold.md`), convert the HTML files into React components (see Step 0 HTML detection for the conversion flow), then continue with the 21 dimensions on the resulting React codebase.
 
-**Step zero — TypeScript migration (if needed):** If the codebase is JSX/JS (React but not TypeScript), migrate it to TypeScript FIRST, before any other dimension work, by reading and following `references/jsx-to-tsx-migration.md`. This is automatic and not asked. Everything downstream assumes TypeScript. Migrating first means PropTypes is never added — TypeScript interfaces are the type contracts. Never add PropTypes to a JS file you're about to migrate; convert it instead.
+**Step zero — TypeScript migration is a HARD GATE (if the codebase is JSX/JS).** This is not a plan item that can be reordered or deferred — it is a blocking precondition. If the codebase is JSX/JS (React but not TypeScript), you MUST complete the full TypeScript migration BEFORE touching any other dimension. Do not fix the data layer, API envelopes, state, bundling, or anything else first. Nothing else happens until migration is done.
 
-**Avoid over-engineering. When the user says "fix it all," that does not mean apply every possible change maximally. Use judgment:**
+Read and follow `references/jsx-to-tsx-migration.md` completely:
 
-- Split god-components, but start with data-bound ones — don't decompose every large file in one pass; some are fine as-is
-- Don't globally remove every fixed pixel width — target ones that genuinely break responsive layout, leave acceptable micro-constraints
-- Don't migrate routing before fixing data flow — data boundary cleanup gives bigger handoff value first
-- Don't add memoization everywhere — only where it measurably helps
-- The goal is a codebase a developer can integrate, not a codebase that satisfies every linter rule at the cost of churn
+- Install TypeScript toolchain (typescript, @types/react, @types/react-dom), create tsconfig.json
+- Rename every `.jsx` → `.tsx` and `.js` → `.ts`
+- Add interfaces for every component's props
+- Remove all PropTypes and the `prop-types` dependency — interfaces replace them
+- Convert domain.js JSDoc typedefs to domain.ts interfaces
+- Run `tsc --noEmit` and resolve type errors (no `any` shortcuts)
+- Confirm `test` and `build` pass on the migrated TypeScript codebase
 
-**High-volume cleanup — do the important ones, then offer to continue.** For dimensions that touch many files (data-testid across all components, icon extraction, splitting multiple large files), fix the most important instances first, then ask: "I've done the key ones — want me to continue across the remaining N files? That's thorough but uses more credits." Let the user opt into the long tail rather than exhaustively processing every file by default. This keeps a single run affordable.
+**This is the single most-skipped step.** Past runs have done "easier wins" (API, bundling) first and silently never circled back to migration, leaving the codebase in JavaScript despite the skill promising TypeScript output. Do NOT do this. Migration is step zero — verify it's complete (zero `.jsx` files remain, tsconfig.json exists, prop-types removed) before proceeding to any dimension. If you find yourself fixing other things while `.jsx` files still exist, STOP and migrate first.
 
-**Batch validation — don't validate after every small edit.** Group related edits and run `test && build` at meaningful checkpoints (after finishing a dimension or a logical group), not after every 3-5 file batch. Repeated per-batch validation multiplies cost for little added safety.
+### Two paths — how the designer drives the work
+
+**Path 1 — "Fix it all" (the designer said "fix it all," "fix everything," "let's go," "make it production ready").**
+
+This is explicit authorization to work to completion. Do NOT stop to ask permission for individual findings, and do NOT present a menu of next tasks. The designer chose hands-off.
+
+1. **Announce the plan once, then proceed.** Before starting, give one short heads-up in plain language:
+   > "Got it — fixing everything in one pass. I'll start with the TypeScript migration (your .jsx files become .tsx with proper types), then work through the findings in priority order: data layer, state, then cleanup. I'll narrate as I go and report when it's done."
+2. **Work continuously through all High → Medium → Low findings in priority order.** No "want me to continue?" stops. No task menus.
+3. **Narrate progress as you go** so the designer can follow without having to respond:
+   > "✓ TypeScript migration complete. Now splitting the workspace context into focused pieces..."
+   > "✓ Context split done. Adding the data-fetching layer..."
+   > This gives the designer visibility without requiring them to type anything.
+4. **Only stop if genuinely blocked:** the build breaks and can't be auto-fixed, or there's a real decision only a human can make (e.g. ambiguous design intent). When stopping for a block, explain it plainly and ask the specific question — this is not the same as the task-menu.
+5. **If the run must pause for length** (large codebase, context limits): resume the same plan automatically on the next turn. Say "Continuing — next is X" and keep going. Don't make the designer pick from options to resume.
+6. **Report once at the end** with what was fixed and the updated state.
+
+**Path 2 — "Pick specific findings" (the designer named specific things: "just the security and data issues").**
+
+1. Fix the named findings in one pass (same continuous, no-menu behavior — just scoped to what they named).
+2. When done, offer the next step as a single yes/no with a one-line reason in designer language:
+   > "Done with the security and data fixes. Want me to also tackle the state management next? It's what keeps the app fast and easy for a developer to extend. Type yes to continue — or tell me you're done and I'll leave the rest for handoff."
+3. If yes → fix the next finding(s), then offer the next again. Repeat until all findings are done.
+4. **Always offer a clean exit.** The designer can stop partway and hand off what's fixed. "Tell me you're done" is always a valid response — don't pressure them to fix everything.
+
+### Validation — build-pass is NOT done-done
+
+**Critical: passing tests and a successful build do NOT mean the app works.** A missing provider, a dead route, or a broken screen will still pass `npm run build` because they're runtime errors, not compile errors. Tests pass, build succeeds, app is broken. This has happened — a refactor added a context provider but never mounted it in the tree, killing an entire module, while tests and build stayed green.
+
+So validation has three layers, in order:
+
+1. **Type check + build:** `tsc --noEmit` (no type errors), `npm run build` (compiles). Necessary, not sufficient.
+2. **Tests:** `npm run test`. Necessary, not sufficient.
+3. **Runtime verification — the real check:** the build passing only proves it compiles. Confirm the app actually renders. Where you can, start the dev server and check that the main routes render without throwing. At minimum, reason through every screen a refactor touched and confirm it will still render.
+
+**Provider-mount check (a specific, predictable failure):** Any time you add or move a React context provider, you MUST verify the provider actually wraps the components that consume its hook, in the real routing/app tree — not just that the provider and hook files exist. The classic break: add `XProvider` and `useX()`, forget to mount `XProvider` around the route that calls `useX()`, and the hook throws at runtime. After adding any provider, trace: does this provider wrap every component that calls its hook? If not, the app is broken even though it builds.
+
+**Batch validation cadence:** group related edits and run type-check + test + build at meaningful checkpoints (after finishing a dimension or logical group), not after every few files. But after any change involving providers, routing, or lazy-loaded modules, do the runtime/provider check immediately — these are the changes that break silently.
+
+### Completion reporting — never claim "done" on build alone
+
+When reporting completion (Path 1 final report, or Path 2 between steps), NEVER say "complete, all verified" based only on test+build. Always end with a runtime-verification ask in plain designer language:
+
+> "Tests and build pass. Before you hand off, please open the app in your browser and click through your main screens — the dashboard, the population view, any forms — to confirm everything renders. Some issues only show up at runtime, not in the build. Tell me if any screen looks wrong and I'll fix it."
+
+For a designer who can't read code, that browser click-through is the real test. Make it a required step, not a footnote.
+
+### Working principles (both paths)
+
+**Avoid over-engineering. "Fix it all" means fix every finding well — not apply every possible change maximally.** Use judgment:
+
+- Split god-components by concern, but don't decompose files that are already cohesive
+- Target fixed widths that genuinely break responsive layout; leave acceptable micro-constraints
+- Fix data flow before routing — data boundary cleanup gives bigger handoff value
+- Add memoization only where it measurably helps
+- **Don't chase non-blocking warnings.** A "large bundle chunk" warning is not a functional break and is not one of the 21 dimensions. Don't spend multiple passes optimizing Vite chunks unless the designer asked — it burns credits on something that doesn't affect handoff readiness.
+- The goal is a codebase a developer can integrate, not one that satisfies every linter rule at the cost of churn
 
 ```
 /vibe-to-prod refactor [file or directory]
