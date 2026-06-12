@@ -1,4 +1,4 @@
-# 20-Dimension Audit Checklist
+# 19-Dimension Audit Checklist
 
 Copy this checklist when auditing a vibe-coded prototype for production readiness.
 
@@ -10,7 +10,7 @@ Pre-flight:
 Step 0:
 - [ ] Discovery pass — map the project purpose, stack, conventions before judging anything
 - [ ] Stack detected — React/TS, React/JS, Next.js, or Plain HTML
-  - React/TS → proceed with 20 dimensions
+  - React/TS → proceed with 19 dimensions
   - React/JS → note "will be migrated to TS as first refactor step" (don't flag missing PropTypes)
   - Plain HTML → note "will be converted to Vite + React + TS in refactor mode"
   - Unsupported framework → stop and redirect
@@ -33,7 +33,7 @@ Audit Progress:
 - [ ] 7.  Backend Integration Markers — @backend annotations in code match domain.ts shapes
 - [ ] 8.  Component Library Compliance & Reuse — reuse existing component first, else import shadcn/Radix, never hand-roll a duplicate; consolidate duplicate components serving the same purpose; ACTIVELY SCAN, if no scan mark UNEVALUATED
 - [ ] 9.  Design Token Compliance — no hardcoded colors, spacing, sizing, typography, or raw pixels in inline styles, CSS, or Tailwind arbitrary values
-- [ ] 10. Missing Cases (Destructive/Empty/Error) — ConfirmDialog gates destructive actions; every list/table has empty state; every fallible action has error state (the cases vibecoding forgets)
+- [ ] 10. Missing Cases + Real-Data Resilience — ConfirmDialog gates destructive actions; every list/table has empty state; every fallible action has error state; PLUS components survive real data: null/undefined fields, text overflow, 0/1/500-item lengths, no fixed pixel widths that block adapting (the cases vibecoding forgets — happy path and 3 mock items only)
 - [ ] 11. Routing & Navigation (CONDITIONAL) — single-page: skip. Multi-page with no router: force react-router. Multi-page with a router: leave it.
 - [ ] 12. Expensive Operations (NARROW) — do NOT add useMemo/useCallback as blanket practice (anti-pattern). Only flag genuinely expensive ops that visibly lag with real data. Usually passes.
 - [ ] 13. Accessibility & Readability — CHECK CONTRAST FIRST (dark-on-dark / light-on-light unreadable text); then semantic HTML, ARIA, keyboard nav, focus
@@ -41,9 +41,8 @@ Audit Progress:
 - [ ] 15. Error Boundaries & Component Resilience — route-level error boundaries; PLUS every data-consuming component handles loading, error, and empty states
 - [ ] 16. Dependency, Environment & Onboarding — no unused deps, pinned versions, .env.example present, README has install+run instructions
 - [ ] 17. File Hygiene & Icons — no orphans, unused imports, dead code; raw/inline SVGs (esp. from Figma MCP) replaced with real library icons
-- [ ] 18. Component Production Readiness — spot-check major components for: null/undefined handling, text overflow, empty array behavior, baked-in UI text, prop interface clarity, style isolation
-- [ ] 19. Security Basics — no hardcoded secrets, no dangerouslySetInnerHTML with unsanitized data, npm audit clean, .env not committed
-- [ ] 20. Design Quality — no AI-slop (decorative accent borders, one-off colors), all colors mapped to tokens, severity separate from metric color in charts
+- [ ] 18. Security Basics — no hardcoded secrets, no dangerouslySetInnerHTML with unsanitized data, npm audit clean, .env not committed
+- [ ] 19. Design Quality — no AI-slop (decorative accent borders, one-off colors), all colors mapped to tokens, severity separate from metric color in charts
 
 Output quality:
 - [ ] Every finding pairs a technical term with a plain consequence (term teaches, consequence clarifies)

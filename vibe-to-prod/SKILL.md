@@ -5,8 +5,8 @@ license: MIT
 compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Supports React and Next.js projects. JavaScript codebases are migrated to TypeScript automatically — output is always TypeScript. Other stacks trigger guided redirection.
 metadata:
   author: vibe-to-prod
-  version: "5.6.0"
-  framework: 20-dimension-handoff
+  version: "6.0.0"
+  framework: 19-dimension-handoff
 ---
 
 # Philosophy
@@ -42,7 +42,7 @@ Do not attempt to do the rest of the work without Node. A clear stop with a clea
 
 Once Node is confirmed, check whether dependencies are installed. If `node_modules` is missing OR there's no lockfile (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`), run `npm install` automatically before proceeding. The designer should never have to do this manually — the skill handles it.
 
-Two things this solves: the designer never has to find and use the terminal, and `npm audit` (dimension 19) needs a lockfile to work — fresh Figma Make exports ship without one, so installing first makes the security scan meaningful.
+Two things this solves: the designer never has to find and use the terminal, and `npm audit` (dimension 18) needs a lockfile to work — fresh Figma Make exports ship without one, so installing first makes the security scan meaningful.
 
 **Handle the common Figma Make install failure:** these exports sometimes contain a pnpm-style `link:` dependency in package.json that `npm install` can't resolve (fails with a workspace/link error). If install fails for this reason, fix the malformed dependency entry in package.json, then re-run install. Don't stop the whole run over it — patch and proceed.
 
@@ -58,7 +58,7 @@ If `npm install` fails for any other reason, report the exact error plainly and 
 
 ## React (with TypeScript) — `.tsx` / `.ts`
 
-Proceed with all 20 dimensions.
+Proceed with all 19 dimensions.
 
 ---
 
@@ -70,19 +70,19 @@ Tell the user plainly, then proceed:
 
 > "Your project is in JavaScript. I'll convert it to TypeScript first — this gives your developer proper type safety and makes the handoff cleaner. Then I'll run the full production pass on the TypeScript version."
 
-Read and follow `references/jsx-to-tsx-migration.md` to migrate, THEN run the 20 dimensions on the resulting TypeScript codebase. Because migration happens first, everything downstream is TypeScript — there is no JavaScript path through the dimensions, and PropTypes are never used (TypeScript interfaces replace them entirely).
+Read and follow `references/jsx-to-tsx-migration.md` to migrate, THEN run the 19 dimensions on the resulting TypeScript codebase. Because migration happens first, everything downstream is TypeScript — there is no JavaScript path through the dimensions, and PropTypes are never used (TypeScript interfaces replace them entirely).
 
 ---
 
 ## Next.js — `next.config.*` present or `next` in `package.json`
 
-Proceed with all 20 dimensions, applying the Next.js overrides listed later in this document. If the Next.js project is in JavaScript, migrate to TypeScript first, same as above.
+Proceed with all 19 dimensions, applying the Next.js overrides listed later in this document. If the Next.js project is in JavaScript, migrate to TypeScript first, same as above.
 
 ---
 
 ## Plain HTML / CSS / JS — no `package.json`, or only `.html` / `.css` files
 
-The project isn't React yet, but the UI work has value. vibe-to-prod can convert it to a production-ready Vite + React + TypeScript project — the HTML becomes React components, inline styles become design tokens, and the result goes through the full 20-dimension pass.
+The project isn't React yet, but the UI work has value. vibe-to-prod can convert it to a production-ready Vite + React + TypeScript project — the HTML becomes React components, inline styles become design tokens, and the result goes through the full 19-dimension pass.
 
 Tell the designer:
 
@@ -92,7 +92,7 @@ Tell the designer:
 
 1. Scaffold a Vite + React + TypeScript project (Path A from `references/scaffold.md`)
 2. Convert HTML to React — read and follow `references/html-to-react.md`
-3. Run the 20 dimensions on the resulting React codebase
+3. Run the 19 dimensions on the resulting React codebase
 
 ---
 
@@ -191,7 +191,7 @@ When the developer connects real APIs, they change only the function body inside
 
 ---
 
-# The 20-Dimension Framework
+# The 19-Dimension Framework
 
 ## Structure & Separation
 
@@ -228,7 +228,7 @@ export interface Patient {
 }
 ```
 
-**Quality check:** No duplicated or conflicting interface definitions across the codebase. Every interface must be complete — all fields the UI actually uses must be typed. In audit mode, verify interfaces match actual runtime usage.
+**Quality check:** No duplicated or conflicting interface definitions across the codebase. Every interface must be complete — all fields the UI actually uses must be typed. In audit mode, verify interfaces match actual runtime usage. Two completeness tells: (1) `as any` casts to reach fields not in the interface — the interface is missing those fields; (2) baked-in UI text (labels, placeholders, button copy hardcoded in a component rather than typed props) — reduces reusability, flag as Low. A developer should understand a component's API from its prop interface without reading its internals.
 
 **Runtime validation (catches bad API responses before they crash the UI):**
 
@@ -359,15 +359,26 @@ Covers **colors, spacing, sizing, typography, and all visual values.** Not just 
   - CSS file raw pixels (`margin: 16px`, `font-size: 13px`, `border-radius: 8px`)
 - **Defensive Tailwind Snapping:** Snap arbitrary values to nearest standard Tailwind scale only if visual shift < 1px. Otherwise extract to a semantic CSS variable.
 
-### 10. The Missing Cases — Destructive, Empty, Error States
+### 10. The Missing Cases — Destructive, Empty, Error States + Real-Data Resilience
 
 Vibecoding builds the happy path. The designer demos the flow that works and never hits the cases where data is missing, an action is destructive, or something fails — so those cases never get built. This dimension catches what vibecoding structurally omits. A complete UI handles them; a prototype usually doesn't.
+
+**The missing cases:**
 
 - **Destructive actions:** gate all deletions, resets, or irreversible changes behind `ConfirmDialog` or "Toast with Undo." Vibecoded prototypes almost always have a delete button with no confirmation.
 - **Empty states:** every list, table, or data view needs a "no data yet" state — not a blank area or a crash on an empty array.
 - **Error states:** every action that can fail needs a visible failure path — not a silent dead-end.
 
 (Loading states are covered in dimension 15. Together, 10 and 15 cover the four cases vibecoding forgets: destructive, empty, error, loading.)
+
+**Real-data resilience (the same omission, applied to data shape):** vibecoding renders the 3 mock items perfectly and never the messy real data. Check that components survive:
+
+- **Null/undefined fields:** renders gracefully when a data field is missing, not crashes (this overlaps dimension 3 — missing fields are usually a type-completeness problem; flag under whichever is clearer)
+- **Text overflow:** long names, descriptions, URLs wrap or truncate, not break the layout
+- **Variable lengths:** works with 0, 1, and 500 items — not just the 3 mock items
+- **Fixed widths:** no hardcoded pixel widths that prevent adapting (if responsive is explicitly out of scope, note and move on)
+
+**Coverage method (scan all, deep-read capped):** run the null-access and fixed-width greps across ALL components, then deep-read the highest-risk flagged candidates capped at 8. Report how many were flagged vs deep-read — never "passed" on a small sample.
 
 ### 11. Routing & Navigation (conditional)
 
@@ -448,36 +459,7 @@ The codebase is TypeScript (migrated first if it arrived as JS). Code quality is
   6. Only extract to a custom icon file in `components/icons/` if no reasonable library equivalent exists
   7. Never leave raw multi-line SVG coordinate paths inside UI components
 
-### 18. Component Production Readiness
-
-This dimension checks whether components survive real-world conditions, not just the prototype's mock data.
-
-**Data resilience:**
-
-- **Null/undefined fields:** component renders gracefully when a data field is missing, not crashes
-- **Text overflow:** long names, descriptions, URLs — truncated or wrapped, not breaking the layout
-- **Variable data lengths:** component works with 0 items, 1 item, 500 items — not just the 3 mock items
-- **Special characters:** component doesn't break on quotes, ampersands, unicode
-
-**Reusability:**
-
-- **Baked-in UI text:** labels, placeholders, button text, error messages baked directly into a component instead of passed as props. (Note: this is UI _strings_ — distinct from dimension 2, which covers hardcoded _data arrays_.) Baked-in text reduces reusability — flag as Low.
-- **Prop interface clarity:** TypeScript interfaces define what the component accepts. A developer should understand the component's API without reading its internals.
-- **Style isolation:** component works regardless of parent context. Doesn't depend on a specific wrapper's width or CSS for its own layout.
-
-**Responsive basics:**
-
-- No fixed pixel widths that prevent the component from adapting
-- If responsive behavior is explicitly out of scope for the project, note it and move on
-
-**Coverage method (scan all, deep-read capped):**
-
-- Run the null-access and fixed-width grep patterns across ALL components (cheap — grep returns matching lines, not whole files)
-- From the flagged candidates, deep-read the highest-risk ones, capped at 8 components maximum
-- Report honestly: "grep flagged 23 components with potential null-access; deep-read the 8 highest-risk; recommend reviewing the remaining 15"
-- Never report "passed" based on a small sample — always state how many were flagged vs how many were deep-read
-
-### 19. Security Basics
+### 18. Security Basics
 
 Frontend prototypes often contain security holes that get inherited by the developer. Check for:
 
@@ -504,7 +486,7 @@ Frontend prototypes often contain security holes that get inherited by the devel
 
 **In audit mode:** flag any hardcoded secret as High severity — this is a real security risk, not a code quality issue. Flag `dangerouslySetInnerHTML` as Medium unless it's used with sanitized content.
 
-### 20. Design Quality (No AI Slop)
+### 19. Design Quality (No AI Slop)
 
 This is the dimension designers care about most — it protects visual craft, not just code structure. Vibe-coded UIs drift toward generic "AI dashboard" tropes and inconsistent styling.
 
@@ -632,6 +614,8 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 **Audit rules:**
 
+0. **Create a task list first, then work through it.** Before anything else, create a tracked todo list of the audit phases and tick each off as you complete it. This is the audit's completion anchor — the runs that tracked tasks didn't skip steps; the runs that dove in without a plan are the ones that forgot to write design.md or shortchanged the orphan pass. The phases: (1) pre-flight (node, npm install, build, npm audit), (2) reachability script for orphans, (3) grep evidence pack across dimensions, (4) tsc/depcheck tooling, (5) deep-read highest-risk files, (6) write design.md + guidelines.md, (7) compile report. Tick each only when actually done.
+
 1. **Read before judging.** Before running any grep patterns, spend 2 minutes mapping the project: what is it for, what stack, what conventions are already in place? This prevents false positives — you won't flag JSDoc as a problem if you first understand it's a JS codebase by design.
 
 2. **Lead with stack detection.** Identify the stack (React/TS, React/JS, Next.js, or unsupported). If unsupported, stop and follow Step 0 redirection. If Next.js, apply overrides. **If the codebase is JSX/JS, note at the top of the report that it will be migrated to TypeScript as the first refactor step** — don't audit it as a permanent JavaScript project, and don't flag "missing PropTypes" as a finding (PropTypes won't exist post-migration; TS interfaces replace them).
@@ -657,33 +641,40 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 6. **Run the grep patterns from audit-checklist.md.** Required, not optional. Include output summaries in the report.
 
+6b. **Run the real tools, don't just grep proxies for them.** The strongest audits ran tools; the weakest hand-grepped. Make the tool the instruction so every model gets the strong result. Run these and report results (run-and-report — if one errors or hangs, note it and move on, never let it block the audit):
+
+- **`npm run build`** — catches what static analysis misses: missing-file imports, broken exports. A failing build is a High finding (the dev can't even run it). The v5.6.0 test caught a build broken by missing data files this way.
+- **`tsc --noEmit`** (once a tsconfig exists; if none exists, that absence is itself the dimension-14 finding) — the real type-safety signal. Report the error count instead of just grepping for `: any`.
+- **`npx depcheck`** — finds unused dependencies and duplicate libraries (e.g. MUI icons shipped alongside lucide). Turns "I think this is unused" into fact for dimension 16.
+- **`npm audit --audit-level=high`** — report the vulnerability count for dimension 18.
+
+6c. **Provider-mount / runtime-crash check.** Build passing does NOT mean the app runs (a context provider can be missing while the build stays green). For every library hook the app calls that needs a provider (`useQuery`/`useMutation` → `QueryClientProvider`, custom `useX()` → `XProvider`), verify the matching provider is actually mounted above it in the App/main tree. The classic silent break: TanStack hooks called but `QueryClientProvider` never mounted — every consuming component throws "No QueryClient set" at runtime while the build passes. Flag any hook-without-mounted-provider as High. This is the single highest-value runtime catch in the audit.
+
 7. **Flag interactions from code.** Scan for extreme spring configs, zero-duration transitions, undebounced hover handlers, setTimeout-driven visuals. List findings with file + line, or explicitly state "No interaction smells found." Never skip this section.
 
 8. **Dimension 4 is all-or-nothing.** Any component fetching directly = fail.
 
 9. **Dimension 8 requires active scanning.** Search for reinvented primitives using the grep patterns in audit-checklist.md. If no scan was performed, mark as unevaluated — not passing.
 
-10. **Build a reachability map ONCE, then flag every orphan systematically.** Designers vibecode many screen variants; Figma Make exports generate a file for every screen in the Figma file. Orphaned variants are normal — but they must be identified reliably, not spotted opportunistically.
+10. **Run the reachability script ONCE for orphan detection — do not grep by hand.** Designers vibecode many screen variants; Figma Make exports generate a file for every screen. Orphaned variants are normal — but hand-grepping finds them unreliably (the same codebase returned 8, 24, and 57 orphans across test runs depending on which files the agent happened to check). **Run the script in `references/reachability.md`** — it walks the real import graph from the entry point (including `export...from`, dynamic `import()`, and `React.lazy`) and returns the complete, identical orphan list every time.
 
-    Do this as a single deterministic pass, not a per-file guess:
-    - Start from the entry point (`main.tsx` → `App.tsx`), and trace the full import graph: every file imported by a reachable file is itself reachable. Build the complete set of reachable files.
-    - Any `.tsx`/`.ts` component file NOT in that reachable set is orphaned.
-    - Practical method: `grep -rl "import" src` to list all files, then for each component file, check whether any OTHER file imports it (`grep -rn "import.*ComponentName\|from.*ComponentName" src/`). Zero importers (excluding its own sub-component files) = orphaned. A file imported only in `App.tsx` but never rendered in JSX is also effectively dead — check render usage, not just the import line.
-    - **List every orphan explicitly in a dedicated "Orphaned files (skip for refactoring)" section of the report.** Do not scatter orphan notes across individual dimensions and do not rely on noticing them while checking something else. The fix-it-all reads this section to know what to skip, so it must be complete.
+    The script splits results into two buckets that MUST be treated differently:
+    - **App/variant orphans** (outside `ui/`): unused screen variants and Figma artifacts. List these in the dedicated "Orphaned files (skip for refactoring)" report section; safe to flag for deletion.
+    - **ui/ library primitives** (e.g. `carousel.tsx`, `calendar.tsx`): unused shadcn/Radix components that are a _library_, not dead exploration. Note separately and neutrally. NEVER flag for deletion or refactoring — the designer may use them next week.
 
-    This matters because the fix-it-all will otherwise waste credits splitting and editing dead variants. In prior runs, god-components that were never imported got fully decomposed — pure waste. A complete reachability pass at audit time prevents it. Don't mark a file orphaned without confirming zero importers; don't leave a zero-importer file unmarked.
+    The "Orphaned files" section must be complete — the fix-it-all reads it to know what to skip, which is what prevents wasted credits splitting dead god-components. If the script fails to run, fall back to per-file grep but state in the report that the orphan list may be incomplete.
 
-11. **Dimension 18 coverage.** Run null-access and fixed-width greps across ALL components. Deep-read the highest-risk flagged candidates, capped at 8. Report how many were flagged vs deep-read — never report "passed" on a small sample.
+11. **Real-data resilience coverage (dimension 10).** Run null-access and fixed-width greps across ALL components. Deep-read the highest-risk flagged candidates, capped at 8. Report how many were flagged vs deep-read — never report "passed" on a small sample.
 
-12. **Dimension 19 requires security scanning.** Run the security grep patterns. Flag any hardcoded secret as High immediately.
+12. **Dimension 18 requires security scanning.** Run the security grep patterns. Flag any hardcoded secret as High immediately. Run `npm audit --audit-level=high` and report the vulnerability count.
 
-13. **Dimension 20 (design quality) — explain fully, never compress.** This is the designer's home turf. Flag AI-slop patterns, color-token drift, and severity-vs-metric color issues in full clear prose. These are usually Medium/Low but matter most to the audience.
+13. **Dimension 19 (design quality) — explain fully, never compress.** This is the designer's home turf. Flag AI-slop patterns, color-token drift, and severity-vs-metric color issues in full clear prose. These are usually Medium/Low but matter most to the audience.
 
 14. **Every finding must include a severity (High/Medium/Low) with justification.** Not just the label — one sentence explaining why.
 
 15. **Required output structure — always a table first, then details.** Every audit follows the same shape so the designer gets a consistent, scannable result every time (no more text-list one run, table the next):
 
-    First, a **summary table** covering all 20 dimensions at a glance:
+    First, a **summary table** covering all 19 dimensions at a glance:
 
     | #   | Dimension              | Status | Severity |
     | --- | ---------------------- | ------ | -------- |
@@ -691,13 +682,23 @@ Output format must follow [references/audit-checklist.md](references/audit-check
     | 2   | Clean Data Extraction  | PASS   | —        |
     | ... | ...                    | ...    | ...      |
 
-    Status is PASS / PARTIAL / FAIL / N/A (use N/A for conditional dimensions that don't apply, e.g. RBAC on an app with no roles). Then, **below the table, the detailed findings** — only for dimensions that aren't a clean PASS, each with evidence (file:line), the fact/judgment label, severity justification, and the plain-language consequence.
+    Status is PASS / PARTIAL / FAIL / N/A, and the distinction matters — some models collapse everything to FAIL, which makes the report useless (a designer reading "everything failed" panics or stops trusting it). Use the grades precisely:
+    - **PASS** — the dimension is present and sound. Not perfect, but a developer wouldn't object. (e.g. shadcn used throughout, no hand-rolled primitives.)
+    - **PARTIAL** — present but incomplete. The right pattern exists somewhere but isn't applied consistently, or covers some cases not all. (e.g. domain.ts exists but only types 2 of 8 entities; some destructive actions confirm, others don't.)
+    - **FAIL** — absent or broken. The thing genuinely isn't there, or exists but doesn't work. (e.g. no api.ts at all; build fails; XSS hole.)
+    - **N/A** — conditional dimension that doesn't apply (RBAC on an app with no roles; routing on a single-page app).
+
+    A codebase that already had routing/TS/reuse applied should NOT come back straight-FAIL — that's miscalibration. If you're marking nearly everything FAIL, re-check whether some are really PARTIAL.
+
+    **Each dimension's finding must be its own.** Do not populate a dimension with another dimension's evidence — e.g. don't paste the XSS (security) finding into the Accessibility row to give it something to say. If a dimension has no genuine finding, mark it PASS or N/A. A borrowed finding is worse than an honest PASS.
+
+    Then, **below the table, the detailed findings** — only for dimensions that aren't a clean PASS, each with evidence (file:line), the fact/judgment label, severity justification, and the plain-language consequence.
 
     After the findings, include a dedicated **"Orphaned files (skip for refactoring)"** section listing every file the reachability pass (rule 10) found unimported, with a one-line note that these are unused variants the fix-it-all will skip. This section must be complete — it's what the fix-it-all consults to avoid wasting credits on dead code. If none, say "None — all component files are reachable."
 
     This structure is required in both audit mode and the report a fix-it-all run produces at the end.
 
-16. **Trust grep output — don't over-read files.** The grep evidence pack proves most findings on its own. Only deep-read a source file when the finding genuinely requires seeing code structure (dimension 18 null-handling, confirming a god-component's internal organization). Reading files to "double-check" a finding grep already proved wastes tokens. Cap verification reads to what's strictly necessary.
+16. **Trust grep output — don't over-read files.** The grep evidence pack proves most findings on its own. Only deep-read a source file when the finding genuinely requires seeing code structure (dimension 10 null-handling, confirming a god-component's internal organization). Reading files to "double-check" a finding grep already proved wastes tokens. Cap verification reads to what's strictly necessary.
 
 17. **Design fidelity note:** In audit mode, visual fidelity cannot be verified without running the app. State this once at the top: "Visual fidelity should be verified in the browser after any refactoring." Do not mark it as "AT RISK."
 
@@ -717,7 +718,7 @@ Output format must follow [references/audit-checklist.md](references/audit-check
     - Every specific number (line counts, hook counts) came from actual command output, not estimation
     - Every finding pairs a technical term with a plain consequence
     - Security and design-system findings are in full clear prose, not compressed
-    - The summary table covers all 20 dimensions; detailed findings appear below it
+    - The summary table covers all 19 dimensions; detailed findings appear below it
     - The reachability pass ran and the "Orphaned files" section is present and complete (every flagged god-component was checked for importers — a large file with zero importers must be listed as orphaned, not as a god-component to split)
     - The designer summary contains no untranslated jargon
 
@@ -736,11 +737,11 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 ## Refactor mode (default)
 
-Full 20-dimension pass. Refactor while preserving design intent. The `// @backend` annotations in `api.ts` are the only integration contract — no separate document is generated.
+Full 19-dimension pass. Refactor while preserving design intent. The `// @backend` annotations in `api.ts` are the only integration contract — no separate document is generated.
 
 **Pre-flight:** Run `node --version` first. If Node.js is missing, stop and direct the designer to install it (see pre-flight section at top of this file).
 
-**If the codebase is plain HTML (no React):** don't refuse — convert it. Scaffold a Vite + React + TypeScript project first (Path A from `references/scaffold.md`), convert the HTML files into React components (see Step 0 HTML detection for the conversion flow), then continue with the 20 dimensions on the resulting React codebase.
+**If the codebase is plain HTML (no React):** don't refuse — convert it. Scaffold a Vite + React + TypeScript project first (Path A from `references/scaffold.md`), convert the HTML files into React components (see Step 0 HTML detection for the conversion flow), then continue with the 19 dimensions on the resulting React codebase.
 
 **Step zero — TypeScript migration is a HARD GATE (if the codebase is JSX/JS).** This is not a plan item that can be reordered or deferred — it is a blocking precondition. If the codebase is JSX/JS (React but not TypeScript), you MUST complete the full TypeScript migration BEFORE touching any other dimension. Do not fix the data layer, API envelopes, state, bundling, or anything else first. Nothing else happens until migration is done.
 
@@ -772,15 +773,15 @@ This is explicit authorization to fix everything — even if it takes two rounds
 
 1. **Write a progress ledger first.** Before any edits, create `vibe-to-prod-progress.md` at the project root. Top of file, verbatim: "CONTINUOUS FIX-IT-ALL PASS. Do not present a menu. Do not stop on safe work. Resume the next unchecked item automatically." Then list every finding as a checkbox in priority order, tagged [A] or [B]. This is the anti-compaction anchor — on a large codebase the conversation WILL compact, and after compaction you re-read this file to recover both the plan and the no-menu rule. Tick a box ONLY after that item's build/runtime check passes (not when you believe it's done).
 
-2. **Build a reachability map before any edits — one systematic pass, not per-file guessing.** Designers vibecode many screens and variants; a Figma Make export of 175 files can have 10-20 orphaned variants nobody uses. You MUST identify all of them up front, reliably.
+2. **Get the orphan list before any edits — run the reachability script.** Designers vibecode many screens and variants; a Figma Make export of 175 files can have 10-20 orphaned variants nobody uses. You MUST identify all of them up front, reliably.
 
    - If the audit already produced an "Orphaned files" section, start from that list.
-   - Either way, do the deterministic pass: trace the import graph from `main.tsx` → `App.tsx` outward. Every file reachable through imports from a rendered component is "in use." Every other `.tsx`/`.ts` component file is orphaned. Practical check per component: `grep -rn "ComponentName" src/` — if nothing outside its own files imports it (or it's imported but never rendered in JSX), it's orphaned.
-   - Mark every orphan as `SKIP — orphaned` in the ledger.
+   - Otherwise (or to confirm), run the script in `references/reachability.md` — it walks the real import graph and returns the complete app/variant orphan list plus the separate ui/ primitive list. Do not grep by hand; it misses files.
+   - Mark every app/variant orphan as `SKIP — orphaned` in the ledger.
 
-   **Do not edit, refactor, split, fix types in, replace icons in, or do ANY work on an orphaned file** — not in round one, not in round two, regardless of how many findings it has or how large it is. A 2,000-line orphaned god-component is skipped entirely; an orphaned file with an `any` type is skipped entirely. Every edit to a dead file is wasted credits.
+   **Do not edit, refactor, split, fix types in, replace icons in, or do ANY work on an orphaned file** — not in round one, not in round two, regardless of how many findings it has or how large it is. A 2,000-line orphaned god-component is skipped entirely; an orphaned file with an `any` type is skipped entirely. Every edit to a dead file is wasted credits. (The unused ui/ primitives are also left alone — they're a library, not dead code.)
 
-   This is not optional and not opportunistic. Build the full orphan list once, before the first edit, and consult it before touching any file. In prior runs, missing this wasted ~20% of the run splitting and editing files that were never imported.
+   This is not optional. Build the full orphan list once, before the first edit, and consult it before touching any file. In prior runs, missing this wasted ~20% of the run splitting and editing files that were never imported.
 
 3. **Announce the plan once, then proceed:**
 
