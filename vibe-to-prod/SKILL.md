@@ -5,7 +5,7 @@ license: MIT
 compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Supports React and Next.js projects. JavaScript codebases are migrated to TypeScript automatically — output is always TypeScript. Other stacks trigger guided redirection.
 metadata:
   author: vibe-to-prod
-  version: "5.4.0"
+  version: "5.5.0"
   framework: 20-dimension-handoff
 ---
 
@@ -376,7 +376,7 @@ Vibecoding builds the happy path. The designer demos the flow that works and nev
 If multi-page:
 
 - Is it already using a router? If yes, leave it (don't force a switch to a different router — that's the dev's choice).
-- If it's switching views with conditional rendering (`if (page === 'home')`) and no router, replace with declarative `react-router-dom` paths. This is the one case where forcing react-router is right — conditional-render navigation blocks deep-linking and guards.
+- If it's switching views with conditional rendering (`if (page === 'home')`) and no router, convert to declarative `react-router-dom` paths. **Read and follow `references/conditional-to-router.md`** — it's a step-by-step recipe for this exact conversion with known pitfalls documented. Do NOT improvise the routing migration; the reference file exists because improvising it causes expensive retries.
 - Lazy-load heavy route containers (`React.lazy`).
 
 ### 12. Expensive Operations (narrow)
@@ -663,15 +663,17 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 9. **Dimension 8 requires active scanning.** Search for reinvented primitives using the grep patterns in audit-checklist.md. If no scan was performed, mark as unevaluated — not passing.
 
-10. **Dimension 18 coverage.** Run null-access and fixed-width greps across ALL components. Deep-read the highest-risk flagged candidates, capped at 8. Report how many were flagged vs deep-read — never report "passed" on a small sample.
+10. **Flag orphaned files in findings.** Designers vibecode many variants; Figma Make exports generate files for every screen in the Figma file. Before listing a file as a god-component or flagging it for any issue, check whether it's actually imported by another file. If it's orphaned (zero imports from other files), note it as "orphaned variant — not imported, skip for refactoring" in the finding. This prevents the fix-it-all from wasting credits editing dead code. A quick `grep -r "import.*ComponentName" src/` per flagged file is enough.
 
-11. **Dimension 19 requires security scanning.** Run the security grep patterns. Flag any hardcoded secret as High immediately.
+11. **Dimension 18 coverage.** Run null-access and fixed-width greps across ALL components. Deep-read the highest-risk flagged candidates, capped at 8. Report how many were flagged vs deep-read — never report "passed" on a small sample.
 
-12. **Dimension 20 (design quality) — explain fully, never compress.** This is the designer's home turf. Flag AI-slop patterns, color-token drift, and severity-vs-metric color issues in full clear prose. These are usually Medium/Low but matter most to the audience.
+12. **Dimension 19 requires security scanning.** Run the security grep patterns. Flag any hardcoded secret as High immediately.
 
-13. **Every finding must include a severity (High/Medium/Low) with justification.** Not just the label — one sentence explaining why.
+13. **Dimension 20 (design quality) — explain fully, never compress.** This is the designer's home turf. Flag AI-slop patterns, color-token drift, and severity-vs-metric color issues in full clear prose. These are usually Medium/Low but matter most to the audience.
 
-14. **Required output structure — always a table first, then details.** Every audit follows the same shape so the designer gets a consistent, scannable result every time (no more text-list one run, table the next):
+14. **Every finding must include a severity (High/Medium/Low) with justification.** Not just the label — one sentence explaining why.
+
+15. **Required output structure — always a table first, then details.** Every audit follows the same shape so the designer gets a consistent, scannable result every time (no more text-list one run, table the next):
 
     First, a **summary table** covering all 20 dimensions at a glance:
 
@@ -683,11 +685,11 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
     Status is PASS / PARTIAL / FAIL / N/A (use N/A for conditional dimensions that don't apply, e.g. RBAC on an app with no roles). Then, **below the table, the detailed findings** — only for dimensions that aren't a clean PASS, each with evidence (file:line), the fact/judgment label, severity justification, and the plain-language consequence. This structure is required in both audit mode and the report a fix-it-all run produces at the end.
 
-15. **Trust grep output — don't over-read files.** The grep evidence pack proves most findings on its own. Only deep-read a source file when the finding genuinely requires seeing code structure (dimension 18 null-handling, confirming a god-component's internal organization). Reading files to "double-check" a finding grep already proved wastes tokens. Cap verification reads to what's strictly necessary.
+16. **Trust grep output — don't over-read files.** The grep evidence pack proves most findings on its own. Only deep-read a source file when the finding genuinely requires seeing code structure (dimension 18 null-handling, confirming a god-component's internal organization). Reading files to "double-check" a finding grep already proved wastes tokens. Cap verification reads to what's strictly necessary.
 
-16. **Design fidelity note:** In audit mode, visual fidelity cannot be verified without running the app. State this once at the top: "Visual fidelity should be verified in the browser after any refactoring." Do not mark it as "AT RISK."
+17. **Design fidelity note:** In audit mode, visual fidelity cannot be verified without running the app. State this once at the top: "Visual fidelity should be verified in the browser after any refactoring." Do not mark it as "AT RISK."
 
-17. **End with a "Summary for the designer."** A warm, plain-language section (no jargon — use the translation table) covering:
+18. **End with a "Summary for the designer."** A warm, plain-language section (no jargon — use the translation table) covering:
     - Overall health in a sentence
     - Top 3 things to fix and why they matter for handoff
     - Roughly how much developer time the fixes will save
@@ -697,7 +699,7 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
     This is the part a non-technical reader actually reads. It should make the designer feel informed and in control.
 
-18. **Self-review gate before finalizing.** Re-read your own report and verify each of these before sending. If any fail, fix before finalizing:
+19. **Self-review gate before finalizing.** Re-read your own report and verify each of these before sending. If any fail, fix before finalizing:
     - Every citation has a line number (or honest `file:? (line not verified)`)
     - No filename appears multiple times without distinct line numbers and distinct issues
     - Every specific number (line counts, hook counts) came from actual command output, not estimation
@@ -706,7 +708,7 @@ Output format must follow [references/audit-checklist.md](references/audit-check
     - The summary table covers all 20 dimensions; detailed findings appear below it
     - The designer summary contains no untranslated jargon
 
-19. **End with a two-path choice.** After the designer summary, offer exactly two ways forward — no menu of individual tasks:
+20. **End with a two-path choice.** After the designer summary, offer exactly two ways forward — no menu of individual tasks:
 
     > **How would you like to proceed?**
     >
@@ -757,19 +759,27 @@ This is explicit authorization to fix everything — even if it takes two rounds
 
 1. **Write a progress ledger first.** Before any edits, create `vibe-to-prod-progress.md` at the project root. Top of file, verbatim: "CONTINUOUS FIX-IT-ALL PASS. Do not present a menu. Do not stop on safe work. Resume the next unchecked item automatically." Then list every finding as a checkbox in priority order, tagged [A] or [B]. This is the anti-compaction anchor — on a large codebase the conversation WILL compact, and after compaction you re-read this file to recover both the plan and the no-menu rule. Tick a box ONLY after that item's build/runtime check passes (not when you believe it's done).
 
-2. **Announce the plan once, then proceed:**
+2. **Run an import-reachability scan before any edits.** Designers vibecode many screens, variants, and explorations — only some end up wired into the app. A Figma Make export of 175 files can easily have 10-20 orphaned variants that nobody uses. Before touching any file, trace from the entry point (`main.tsx` → `App.tsx` → rendered components → their imports) and identify which files are actually in the render tree.
+
+   Quick method: for each file the audit flagged (god-components, type issues, icon cleanup, etc.), grep for imports of that file across `src/`. If zero other files import it, it's an orphaned variant — mark it `SKIP — not imported` in the ledger.
+
+   **Do not edit, refactor, split, fix types in, replace icons in, or do ANY work on orphaned files.** Not in round one, not in round two. Every minute spent on an unused file is wasted credits. This applies to ALL work, not just expensive splits — a 10-credit icon fix on a dead file is still waste.
+
+   In a real test, this check would have saved ~300 credits (~20% of the run) by skipping two god-component splits and two smaller fixes on files that were never imported.
+
+3. **Announce the plan once, then proceed:**
 
    > "Got it — fixing everything. I'll work through the data layer, types, security, the missing states, routing, and cleanup in one continuous pass, verifying as I go. The one thing I'll hold for a separate step is splitting your largest files — that's the riskiest change and safer done deliberately. Starting now."
 
-3. **Work continuously through all Category A items** in priority order (High → Medium → Low). Narrate progress so the designer can follow without responding: "✓ Data layer and API stubs done. Now adding destructive-action confirmations..." No stops, no menus.
+4. **Work continuously through all Category A items** in priority order (High → Medium → Low). Narrate progress so the designer can follow without responding: "✓ Data layer and API stubs done. Now adding destructive-action confirmations..." No stops, no menus.
 
-4. **If the run pauses for length/compaction:** re-read the ledger and resume automatically. Say "Continuing — next is X" and keep going. NEVER present options to resume.
+5. **If the run pauses for length/compaction:** re-read the ledger and resume automatically. Say "Continuing — next is X" and keep going. NEVER present options to resume.
 
-5. **When all Category A is done and verified, hand off to round two with a reflexive prompt.** This is the ONE legitimate stop. It is NOT a menu (not a list, not "if you want, next I'll…"). It's a single clearly-bounded item with a reason, phrased so the designer types "go" reflexively — because they already said fix it all, so continuing is the expected default, not a new decision:
+6. **When all Category A is done and verified, hand off to round two with a reflexive prompt.** This is the ONE legitimate stop. It is NOT a menu (not a list, not "if you want, next I'll…"). It's a single clearly-bounded item with a reason, phrased so the designer types "go" reflexively — because they already said fix it all, so continuing is the expected default, not a new decision:
 
-   > "Everything's hardened and verified — data layer, types, security, missing states, routing, all done and building clean. One thing left: your three largest files (ProtocolTabBRISOTE ~1,800 lines, etc.) need splitting into smaller pieces. That's the riskiest change, so I held it for its own focused pass where I verify each split in the browser as I go. **Say "go" and I'll finish it.**"
+   > "Everything's hardened and verified — data layer, types, security, missing states, routing, all done and building clean. One thing left: your [N] largest _in-use_ files need splitting into smaller pieces. That's the riskiest change, so I held it for its own focused pass where I verify each split in the browser as I go. **Say "go" and I'll finish it.**"
 
-6. **On "go" (round two):** split the god-components one at a time, verifying each in the browser/runtime before the next. This is the highest-breakage-risk work — go carefully, never batch it. When done, report and remind the designer to click through their screens.
+7. **On "go" (round two):** split the god-components one at a time, verifying each in the browser/runtime before the next. **Only split files that passed the reachability scan** — orphaned god-components stay untouched regardless of their size. This is the highest-breakage-risk work — go carefully, never batch it. When done, report and remind the designer to click through their screens.
 
 **Why round two exists:** not because the agent can't do the work, and not as a menu in disguise — but because splitting huge files is where runtime breaks hide, and doing it as its own verified pass (rather than hastily at the tail of a long, context-degraded run) is what protects the designer's app. The "say go" prompt makes continuing effortless — one reflexive word, not a decision.
 
@@ -818,6 +828,8 @@ When reporting completion (Path 1 final report, or Path 2 between steps), NEVER 
 For a designer who can't read code, that browser click-through is the real test. Make it a required step, not a footnote.
 
 ### Working principles (both paths)
+
+**Never edit an orphaned file.** Before doing ANY work on a file — splitting, type fixes, icon replacement, anything — check whether that file is actually imported by another file in the app. Designers vibecode many screen variants; Figma Make exports generate files for every variant in the Figma file. Orphaned variants are normal and expected. Editing them is wasted credits. `grep -r "import.*ComponentName" src/` takes seconds and can save hundreds of credits. This applies to both Category A and Category B work, in both Path 1 and Path 2.
 
 **Avoid over-engineering. "Fix it all" means fix every finding well — not apply every possible change maximally.** Use judgment:
 
