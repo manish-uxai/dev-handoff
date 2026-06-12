@@ -6,7 +6,7 @@ compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and
 metadata:
   author: vibe-to-prod
   version: "6.0.0"
-  framework: 19-dimension-handoff
+  framework: 18-dimension-handoff
 ---
 
 # Philosophy
@@ -42,7 +42,7 @@ Do not attempt to do the rest of the work without Node. A clear stop with a clea
 
 Once Node is confirmed, check whether dependencies are installed. If `node_modules` is missing OR there's no lockfile (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`), run `npm install` automatically before proceeding. The designer should never have to do this manually — the skill handles it.
 
-Two things this solves: the designer never has to find and use the terminal, and `npm audit` (dimension 18) needs a lockfile to work — fresh Figma Make exports ship without one, so installing first makes the security scan meaningful.
+Two things this solves: the designer never has to find and use the terminal, and `npm audit` (dimension 17) needs a lockfile to work — fresh Figma Make exports ship without one, so installing first makes the security scan meaningful.
 
 **Handle the common Figma Make install failure:** these exports sometimes contain a pnpm-style `link:` dependency in package.json that `npm install` can't resolve (fails with a workspace/link error). If install fails for this reason, fix the malformed dependency entry in package.json, then re-run install. Don't stop the whole run over it — patch and proceed.
 
@@ -58,7 +58,7 @@ If `npm install` fails for any other reason, report the exact error plainly and 
 
 ## React (with TypeScript) — `.tsx` / `.ts`
 
-Proceed with all 19 dimensions.
+Proceed with all 18 dimensions.
 
 ---
 
@@ -70,19 +70,19 @@ Tell the user plainly, then proceed:
 
 > "Your project is in JavaScript. I'll convert it to TypeScript first — this gives your developer proper type safety and makes the handoff cleaner. Then I'll run the full production pass on the TypeScript version."
 
-Read and follow `references/jsx-to-tsx-migration.md` to migrate, THEN run the 19 dimensions on the resulting TypeScript codebase. Because migration happens first, everything downstream is TypeScript — there is no JavaScript path through the dimensions, and PropTypes are never used (TypeScript interfaces replace them entirely).
+Read and follow `references/jsx-to-tsx-migration.md` to migrate, THEN run the 18 dimensions on the resulting TypeScript codebase. Because migration happens first, everything downstream is TypeScript — there is no JavaScript path through the dimensions, and PropTypes are never used (TypeScript interfaces replace them entirely).
 
 ---
 
 ## Next.js — `next.config.*` present or `next` in `package.json`
 
-Proceed with all 19 dimensions, applying the Next.js overrides listed later in this document. If the Next.js project is in JavaScript, migrate to TypeScript first, same as above.
+Proceed with all 18 dimensions, applying the Next.js overrides listed later in this document. If the Next.js project is in JavaScript, migrate to TypeScript first, same as above.
 
 ---
 
 ## Plain HTML / CSS / JS — no `package.json`, or only `.html` / `.css` files
 
-The project isn't React yet, but the UI work has value. vibe-to-prod can convert it to a production-ready Vite + React + TypeScript project — the HTML becomes React components, inline styles become design tokens, and the result goes through the full 19-dimension pass.
+The project isn't React yet, but the UI work has value. vibe-to-prod can convert it to a production-ready Vite + React + TypeScript project — the HTML becomes React components, inline styles become design tokens, and the result goes through the full 18-dimension pass.
 
 Tell the designer:
 
@@ -92,7 +92,7 @@ Tell the designer:
 
 1. Scaffold a Vite + React + TypeScript project (Path A from `references/scaffold.md`)
 2. Convert HTML to React — read and follow `references/html-to-react.md`
-3. Run the 19 dimensions on the resulting React codebase
+3. Run the 18 dimensions on the resulting React codebase
 
 ---
 
@@ -191,7 +191,7 @@ When the developer connects real APIs, they change only the function body inside
 
 ---
 
-# The 19-Dimension Framework
+# The 18-Dimension Framework
 
 ## Structure & Separation
 
@@ -214,9 +214,9 @@ When the developer connects real APIs, they change only the function body inside
 - Move all `MOCK_` arrays, seed data, and hardcoded lists to `/src/data/`. No inline arrays in UI components.
 - Preserve the exact data shape.
 
-### 3. Canonical Domain Types (`domain.ts`) + Runtime Validation
+### 3. Canonical Domain Types (`domain.ts`)
 
-A single file that describes every data entity the UI renders. The codebase is TypeScript (migrated first if it arrived as JS), so this is always strict interfaces — never JSDoc.
+A single file that describes every data entity the UI renders. The codebase is TypeScript (migrated first if it arrived as JS), so this is always strict interfaces — never JSDoc. This is the dimension that prevents the "multiple discussion rounds" problem: when the data shape changes, a developer changes one file, not a parent component plus three children.
 
 Strict interfaces in `domain.ts`:
 
@@ -228,91 +228,56 @@ export interface Patient {
 }
 ```
 
+Components import their types from `domain.ts` — they don't define their own. One central source of truth for every shared entity (workspace, dashboard, study, etc.).
+
 **Quality check:** No duplicated or conflicting interface definitions across the codebase. Every interface must be complete — all fields the UI actually uses must be typed. In audit mode, verify interfaces match actual runtime usage. Two completeness tells: (1) `as any` casts to reach fields not in the interface — the interface is missing those fields; (2) baked-in UI text (labels, placeholders, button copy hardcoded in a component rather than typed props) — reduces reusability, flag as Low. A developer should understand a component's API from its prop interface without reading its internals.
 
-**Runtime validation (catches bad API responses before they crash the UI):**
+**Error handling, not runtime-validation libraries:** Do NOT add Zod, Yup, or any runtime-validation library. The developer integrating the real backend decides how responses are validated. What the handoff needs is plain try/catch around the async stub calls (dimension 4), with a visible error state when something fails — not a schema layer the backend dev didn't ask for and may not use. Keep it simple: typed interfaces for shape, try/catch for failure.
 
-Check `package.json` for an existing validation library first:
+### 4. API Contract Stubs (`api.ts`) + Data Layer
 
-- If **Zod** is present — add Zod schemas in `src/schemas/` alongside domain types
-- If **Yup** is present — declare schemas using `yup.object()` and extract types with `yup.InferType<typeof Schema>`
-- If **Valibot** or **Joi** is present — use that library's equivalent schema pattern
-- If **nothing** is present — add Zod as the default: `npm install zod`
+This is the integration seam — the single place a developer swaps mock data for real API calls. Get this right and the dev plugs in a backend without touching the UI.
 
-The principle is the same regardless of library: every API response shape should be validated at runtime so bad data from a real API is caught at the boundary, not deep inside a component.
+- **Hard rule:** No component imports mock data directly. All data flows through async functions in `api.ts`.
+- Each function is an **async stub** that simulates latency and returns mock data:
 
 ```ts
-// Example with Zod
-import { z } from "zod";
+// src/api.ts
+import { MOCK_PATIENTS } from "./data/patients";
+import type { Patient } from "./domain";
 
-export const PatientSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  status: z.enum(["active", "inactive"]),
-});
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export type Patient = z.infer<typeof PatientSchema>;
-```
-
-### 4. API Contract Stubs (`api.ts`) + Data Fetching Layer
-
-- **Hard rule:** No component imports mock data directly. All data flows through async functions in `api.ts`. This rule is non-negotiable regardless of the data fetching library in use.
-- Implement async functions simulating latency (`await delay(300)`) for all data dependencies.
-- **Envelope Rule:** Mock responses use realistic envelopes (`{ data, meta: { total, page } }`) not flat arrays.
-- **Third-Party Integrations:** Maps, charts, heatmaps — never fetch internally. Data via API stubs only.
-- Every stub carries a `// @backend` annotation.
-
-**Data fetching layer (wraps the API stubs with loading/error/caching):**
-
-Check `package.json` for an existing data fetching library first:
-
-- If **TanStack Query** (React Query) is present — wrap API stubs in `useQuery`/`useMutation` hooks inside `src/api/hooks/`
-- If **SWR** is present — wrap in custom `useSWR` functions using the stub as the fetcher
-- If **Axios with custom hooks** is present — wrap in that pattern
-- If **nothing** is present — add TanStack Query as the default: `npm install @tanstack/react-query`
-
-TanStack Query gives loading, error, refetch, and caching states automatically — components get these for free instead of managing them manually with `useState`.
-
-```ts
-// src/api/hooks/usePatients.ts
-import { useQuery } from "@tanstack/react-query";
-import { getPatients } from "../api";
-
-export function usePatients() {
-  return useQuery({
-    queryKey: ["patients"],
-    queryFn: getPatients,
-  });
+// Returns the patient list. Swap the body for a real API call at integration.
+export async function getPatients(): Promise<Patient[]> {
+  await delay(300);
+  return MOCK_PATIENTS;
 }
 ```
 
-Components consume the hook, never the raw API function or mock data directly:
+- **Self-documenting names are the contract.** `getPatients()`, `getStudies()`, `getDocuments()` — a developer reading `api.ts` sees every data dependency and what it returns, from the function names and return types alone. No annotation system needed; the typed stub IS the map.
+- **The function is the swap-point.** At integration, the developer replaces the stub body (`await delay; return MOCK`) with a real fetch/axios call. The UI calling `getPatients()` never changes.
+
+**Do NOT add a data-fetching library.** No TanStack Query, no SWR, no `QueryClientProvider`. The developer wires up real data fetching their own way at integration time — that's explicitly their job, not the prototype's. Adding TanStack now creates a provider that must be mounted (a runtime-crash risk) and a pattern the dev may not use.
+
+**Wire data through Context API.** For data that's shared across screens, expose it via a React Context provider that calls the `api.ts` stubs, simulating async with the `delay` above. This gives the dev a clean global data layer they extend at integration — and it's the pattern they actually expect (Context or Redux), not query hooks.
 
 ```tsx
-const { data, isLoading, error } = usePatients();
+// Components consume context, which calls the api.ts stub internally
+const { patients, loading, error } = usePatientData();
 ```
 
-**TypeScript annotation format:**
-
-```ts
-// @backend GET /api/patients
-// Auth: Bearer token (JWT)
-// Response: { data: Patient[]; meta: { total: number } }
-export async function getPatients(): Promise<ApiResponse<Patient[]>> {
-  await delay(300);
-  return { data: MOCK_PATIENTS, meta: { total: MOCK_PATIENTS.length } };
-}
-```
-
-(Codebase is always TypeScript, so annotations live above typed stubs as shown above.)
+- **Third-party integrations** (maps, charts, heatmaps) never fetch internally — data comes through the `api.ts` stubs like everything else.
 
 ## State & Access
 
-### 5. State Management & Reducer Isolation
+### 5. State Management
 
-- Avoid chains of 5+ independent `useState` hooks.
-- Consolidate into reducer-based state with explicit action schemas. Allows developers to hook up Redux or Zustand instantly.
-- **Provider-mount safety:** when extracting state into a new context provider, you MUST mount that provider in the routing/app tree so it wraps every component that consumes its hook. Creating the provider and hook files is not enough — an unmounted provider makes the consuming hook throw at runtime, killing the screen, while build and tests still pass. After any provider change, trace: does this provider wrap every component calling its hook? Verify in the browser, not just the build.
+- Avoid chains of 5+ independent `useState` hooks — a 30-40 useState component is the canonical mess.
+- **Lead with a reducer.** For genuinely complex screens, consolidate scattered `useState` into a `useReducer` with explicit named actions (`SET_FIELD`, `ADD_ARM`, `TOGGLE_COUNTRY`). Named actions make state transitions visible and are the cleanest swap-point for the developer's eventual Context/Redux integration.
+- **Simpler fallback — combine into one object.** Where a full reducer is overkill, collapse many related `useState` into a single state object updated together. Reduces the hook count and keeps related fields in one place.
+- **Nested/repeating fields → `useFieldArray`** (or equivalent), so edits return the whole array of objects as one structured value rather than a tangle of per-field state.
+- **Provider-mount safety:** when extracting state into a Context provider, you MUST mount that provider in the routing/app tree so it wraps every component that consumes its hook. Creating the provider and hook files is not enough — an unmounted provider makes the consuming hook throw at runtime, killing the screen, while build and tests still pass. After any provider change, trace: does this provider wrap every component calling its hook? Verify in the browser, not just the build.
 
 ### 6. Read-Only / Role-Based Access Control (conditional)
 
@@ -323,11 +288,14 @@ If the app does have roles:
 - Use the HTML `inert` attribute to block UI interaction for read-only roles (one declaration on a container beats per-element `disabled` props, which silently miss newly-added elements).
 - Define roles as a union type in `domain.ts`.
 
-### 7. Backend Integration Markers
+### 7. Self-Documenting Data Layer
 
-- Every API stub annotated with `// @backend` as shown in dimension 4.
-- Annotations must match data shapes in `domain.ts`.
-- The annotations live in the code — a developer reading `api.ts` can see every endpoint they need to build.
+The developer must be able to open `api.ts` and see every data dependency they need to build a backend for — without a separate annotation system.
+
+- Stub function names describe what they return: `getStudies()`, `getPatientDocuments()`, `getStudyById(id)` — not `fetchData()` or `loadStuff()`.
+- Return types reference `domain.ts` interfaces, so the shape is visible from the signature.
+- Each stub's body clearly returns mock data via the `delay` simulation, so the swap-point is obvious.
+- Together this means a developer reads `api.ts` top to bottom and has the full list of endpoints to build and the exact shape each returns — the typed, well-named stub IS the integration map. No `@backend` comments, no separate contract file.
 
 ## UI Quality & Performance
 
@@ -369,7 +337,7 @@ Vibecoding builds the happy path. The designer demos the flow that works and nev
 - **Empty states:** every list, table, or data view needs a "no data yet" state — not a blank area or a crash on an empty array.
 - **Error states:** every action that can fail needs a visible failure path — not a silent dead-end.
 
-(Loading states are covered in dimension 15. Together, 10 and 15 cover the four cases vibecoding forgets: destructive, empty, error, loading.)
+(Loading states are covered in dimension 14. Together, 10 and 14 cover the four cases vibecoding forgets: destructive, empty, error, loading.)
 
 **Real-data resilience (the same omission, applied to data shape):** vibecoding renders the 3 mock items perfectly and never the messy real data. Check that components survive:
 
@@ -377,6 +345,8 @@ Vibecoding builds the happy path. The designer demos the flow that works and nev
 - **Text overflow:** long names, descriptions, URLs wrap or truncate, not break the layout
 - **Variable lengths:** works with 0, 1, and 500 items — not just the 3 mock items
 - **Fixed widths:** no hardcoded pixel widths that prevent adapting (if responsive is explicitly out of scope, note and move on)
+
+**Long-running asynchronous operations:** prototypes fake long operations with a frozen screen or a spinner that never resolves. Real agentic flows (LLM calls, document ingestion) can take many minutes — a user will not sit on a blocked screen. The correct pattern: move the user off the blocking screen (e.g. back to a dashboard), show a "processing" status for the operation, and give them a way to check back (a reload/refresh affordance) rather than holding the UI hostage. Flag any multi-second simulated operation that blocks the whole screen with no escape.
 
 **Coverage method (scan all, deep-read capped):** run the null-access and fixed-width greps across ALL components, then deep-read the highest-risk flagged candidates capped at 8. Report how many were flagged vs deep-read — never "passed" on a small sample.
 
@@ -398,20 +368,7 @@ Only flag the narrow real case: a genuinely expensive operation (sorting/filteri
 
 ## Robustness & Production Readiness
 
-### 13. Accessibility & Readability Baseline
-
-The most common vibecoding failure here is **unreadable contrast** — an agent pairs a dark background with dark foreground text (or light-on-light), producing text nobody can read. That's not abstract compliance, it's broken UI. Check this first:
-
-- **Color contrast:** text must be readable against its background (WCAG AA: 4.5:1 for body text). Flag any dark-on-dark or light-on-light pairing.
-
-Then the standard baseline:
-
-- Eliminate "div soup." Use semantic HTML5 (`<nav>`, `<main>`, `<header>`, `<button>`, `<aside>`).
-- Interactive elements need `aria-label` or `aria-labelledby`.
-- Keyboard focus: visible focus states, focus trapping in modals.
-- `aria-live` regions for dynamic updates.
-
-### 14. Code Quality (top-tier — non-negotiable)
+### 13. Code Quality (top-tier — non-negotiable)
 
 The codebase is TypeScript (migrated first if it arrived as JS). Code quality is held to a high bar — a developer should open any file and find it clean:
 
@@ -423,7 +380,7 @@ The codebase is TypeScript (migrated first if it arrived as JS). Code quality is
 - ESLint/Prettier clean.
 - No PropTypes — ever. TypeScript interfaces are the type contracts; PropTypes are redundant and must not be added. If migrating from JS, PropTypes are removed and replaced by interfaces, not kept alongside them.
 
-### 15. Error Boundaries & Component Resilience
+### 14. Error Boundaries & Component Resilience
 
 **Route-level:**
 
@@ -436,7 +393,7 @@ The codebase is TypeScript (migrated first if it arrived as JS). Code quality is
 - **Error state:** what happens when the data call fails (fallback message — not a crash)
 - **Empty state:** what appears when there's no data (helpful message — not invisible component)
 
-### 16. Dependency, Environment & Onboarding Hygiene
+### 15. Dependency, Environment & Onboarding Hygiene
 
 - Clean unused packages. Pin critical dependency versions.
 - Provide `.env.example` with all required environment variables stubbed.
@@ -447,7 +404,7 @@ The codebase is TypeScript (migrated first if it arrived as JS). Code quality is
   - It mentions any required environment variables
   - If README is missing or only a default template, flag as Medium severity
 
-### 17. File Hygiene & Icon Consolidation
+### 16. File Hygiene & Icon Consolidation
 
 - Delete orphaned files, unused imports, dead code.
 - **Icon replacement (lookup first, extract last):**
@@ -459,7 +416,7 @@ The codebase is TypeScript (migrated first if it arrived as JS). Code quality is
   6. Only extract to a custom icon file in `components/icons/` if no reasonable library equivalent exists
   7. Never leave raw multi-line SVG coordinate paths inside UI components
 
-### 18. Security Basics
+### 17. Security Basics
 
 Frontend prototypes often contain security holes that get inherited by the developer. Check for:
 
@@ -486,7 +443,7 @@ Frontend prototypes often contain security holes that get inherited by the devel
 
 **In audit mode:** flag any hardcoded secret as High severity — this is a real security risk, not a code quality issue. Flag `dangerouslySetInnerHTML` as Medium unless it's used with sanitized content.
 
-### 19. Design Quality (No AI Slop)
+### 18. Design Quality (No AI Slop)
 
 This is the dimension designers care about most — it protects visual craft, not just code structure. Vibe-coded UIs drift toward generic "AI dashboard" tropes and inconsistent styling.
 
@@ -552,7 +509,7 @@ Same as standard, plus: flag any `useState`, `useContext`, or `useReducer` insid
 - Route guards via `middleware.ts`, not `<ProtectedRoute />` wrappers
 - No conditional rendering (`if (page === 'home')`) instead of file-based routes
 
-### 15. Error Boundaries & Resilience (Next.js)
+### 14. Error Boundaries & Resilience (Next.js)
 
 Check for built-in error files instead of manual Error Boundaries:
 
@@ -561,9 +518,9 @@ Check for built-in error files instead of manual Error Boundaries:
 - `loading.tsx` for suspense states
   Component-level resilience checks (loading/error/empty states) still apply.
 
-### 4 & 7. API Stubs & Backend Markers (Next.js)
+### 4 & 7. API Stubs & Self-Documenting Data Layer (Next.js)
 
-The `api.ts` stub pattern still applies. `// @backend` annotations should note whether endpoints are expected as Next.js API routes (`/app/api/resource/route.ts`) or external services.
+The `api.ts` stub pattern still applies. Stub names/comments should note whether an endpoint is expected as a Next.js API route (`/app/api/resource/route.ts`) or an external service.
 
 ---
 
@@ -629,7 +586,7 @@ Output format must follow [references/audit-checklist.md](references/audit-check
    **Citation format rules (non-negotiable):**
    - Every citation must include a line number: `api.js:42` not just `api.js`
    - Citing the same file multiple times is ONLY acceptable if each citation has a DIFFERENT line number and describes a DIFFERENT issue
-   - If you catch yourself writing `api.js, api.js, api.js` — STOP. That is padding. Write `api.js:42 (missing @backend on getPatients), api.js:67 (missing @backend on createPatient), api.js:91 (flat response instead of envelope)` instead.
+   - If you catch yourself writing `api.js, api.js, api.js` — STOP. That is padding. Write `api.ts:42 (getPatients returns untyped data), api.ts:67 (createPatient not a stub — direct mutation), api.ts:91 (component imports MOCK directly, bypasses api.ts)` instead.
    - If you cannot provide a line number, write "file:? (line not verified)" — this is honest and acceptable. Writing the same filename three times is not.
 
    **WRONG:** `Evidence: domain.js, domain.js, domain.js`
@@ -645,10 +602,10 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 - **`npm run build`** — catches what static analysis misses: missing-file imports, broken exports. A failing build is a High finding (the dev can't even run it). The v5.6.0 test caught a build broken by missing data files this way.
 - **`tsc --noEmit`** (once a tsconfig exists; if none exists, that absence is itself the dimension-14 finding) — the real type-safety signal. Report the error count instead of just grepping for `: any`.
-- **`npx depcheck`** — finds unused dependencies and duplicate libraries (e.g. MUI icons shipped alongside lucide). Turns "I think this is unused" into fact for dimension 16.
-- **`npm audit --audit-level=high`** — report the vulnerability count for dimension 18.
+- **`npx depcheck`** — finds unused dependencies and duplicate libraries (e.g. MUI icons shipped alongside lucide). Turns "I think this is unused" into fact for dimension 15.
+- **`npm audit --audit-level=high`** — report the vulnerability count for dimension 17.
 
-6c. **Provider-mount / runtime-crash check.** Build passing does NOT mean the app runs (a context provider can be missing while the build stays green). For every library hook the app calls that needs a provider (`useQuery`/`useMutation` → `QueryClientProvider`, custom `useX()` → `XProvider`), verify the matching provider is actually mounted above it in the App/main tree. The classic silent break: TanStack hooks called but `QueryClientProvider` never mounted — every consuming component throws "No QueryClient set" at runtime while the build passes. Flag any hook-without-mounted-provider as High. This is the single highest-value runtime catch in the audit.
+6c. **Provider-mount / runtime-crash check.** Build passing does NOT mean the app runs — a context provider can be missing while the build stays green. For every context hook the app calls (`useX()` from a `createContext`/`XProvider` pair), verify the matching provider is actually mounted above it in the App/main tree. The classic silent break: a `useAppData()` hook called in a component whose `AppDataProvider` was never mounted — every consumer throws "must be used within AppDataProvider" at runtime while the build passes. (This codebase uses Context API for shared data, not TanStack — so the providers to check are the app's own context providers.) Flag any hook-without-mounted-provider as High. This is the single highest-value runtime catch in the audit.
 
 7. **Flag interactions from code.** Scan for extreme spring configs, zero-duration transitions, undebounced hover handlers, setTimeout-driven visuals. List findings with file + line, or explicitly state "No interaction smells found." Never skip this section.
 
@@ -666,15 +623,15 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 11. **Real-data resilience coverage (dimension 10).** Run null-access and fixed-width greps across ALL components. Deep-read the highest-risk flagged candidates, capped at 8. Report how many were flagged vs deep-read — never report "passed" on a small sample.
 
-12. **Dimension 18 requires security scanning.** Run the security grep patterns. Flag any hardcoded secret as High immediately. Run `npm audit --audit-level=high` and report the vulnerability count.
+12. **Dimension 17 requires security scanning.** Run the security grep patterns. Flag any hardcoded secret as High immediately. Run `npm audit --audit-level=high` and report the vulnerability count.
 
-13. **Dimension 19 (design quality) — explain fully, never compress.** This is the designer's home turf. Flag AI-slop patterns, color-token drift, and severity-vs-metric color issues in full clear prose. These are usually Medium/Low but matter most to the audience.
+13. **Dimension 18 (design quality) — explain fully, never compress.** This is the designer's home turf. Flag AI-slop patterns, color-token drift, and severity-vs-metric color issues in full clear prose. These are usually Medium/Low but matter most to the audience.
 
 14. **Every finding must include a severity (High/Medium/Low) with justification.** Not just the label — one sentence explaining why.
 
 15. **Required output structure — always a table first, then details.** Every audit follows the same shape so the designer gets a consistent, scannable result every time (no more text-list one run, table the next):
 
-    First, a **summary table** covering all 19 dimensions at a glance:
+    First, a **summary table** covering all 18 dimensions at a glance:
 
     | #   | Dimension              | Status | Severity |
     | --- | ---------------------- | ------ | -------- |
@@ -690,7 +647,7 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
     A codebase that already had routing/TS/reuse applied should NOT come back straight-FAIL — that's miscalibration. If you're marking nearly everything FAIL, re-check whether some are really PARTIAL.
 
-    **Each dimension's finding must be its own.** Do not populate a dimension with another dimension's evidence — e.g. don't paste the XSS (security) finding into the Accessibility row to give it something to say. If a dimension has no genuine finding, mark it PASS or N/A. A borrowed finding is worse than an honest PASS.
+    **Each dimension's finding must be its own.** Do not populate a dimension with another dimension's evidence — e.g. don't paste the XSS (security) finding into the Error Boundaries row to give it something to say. If a dimension has no genuine finding, mark it PASS or N/A. A borrowed finding is worse than an honest PASS.
 
     Then, **below the table, the detailed findings** — only for dimensions that aren't a clean PASS, each with evidence (file:line), the fact/judgment label, severity justification, and the plain-language consequence.
 
@@ -718,7 +675,7 @@ Output format must follow [references/audit-checklist.md](references/audit-check
     - Every specific number (line counts, hook counts) came from actual command output, not estimation
     - Every finding pairs a technical term with a plain consequence
     - Security and design-system findings are in full clear prose, not compressed
-    - The summary table covers all 19 dimensions; detailed findings appear below it
+    - The summary table covers all 18 dimensions; detailed findings appear below it
     - The reachability pass ran and the "Orphaned files" section is present and complete (every flagged god-component was checked for importers — a large file with zero importers must be listed as orphaned, not as a god-component to split)
     - The designer summary contains no untranslated jargon
 
@@ -737,11 +694,11 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 ## Refactor mode (default)
 
-Full 19-dimension pass. Refactor while preserving design intent. The `// @backend` annotations in `api.ts` are the only integration contract — no separate document is generated.
+Full 18-dimension pass. Refactor while preserving design intent. The self-documenting stubs in `api.ts` (well-named typed async functions) are the integration map — no separate contract document is generated.
 
 **Pre-flight:** Run `node --version` first. If Node.js is missing, stop and direct the designer to install it (see pre-flight section at top of this file).
 
-**If the codebase is plain HTML (no React):** don't refuse — convert it. Scaffold a Vite + React + TypeScript project first (Path A from `references/scaffold.md`), convert the HTML files into React components (see Step 0 HTML detection for the conversion flow), then continue with the 19 dimensions on the resulting React codebase.
+**If the codebase is plain HTML (no React):** don't refuse — convert it. Scaffold a Vite + React + TypeScript project first (Path A from `references/scaffold.md`), convert the HTML files into React components (see Step 0 HTML detection for the conversion flow), then continue with the 18 dimensions on the resulting React codebase.
 
 **Step zero — TypeScript migration is a HARD GATE (if the codebase is JSX/JS).** This is not a plan item that can be reordered or deferred — it is a blocking precondition. If the codebase is JSX/JS (React but not TypeScript), you MUST complete the full TypeScript migration BEFORE touching any other dimension. Do not fix the data layer, API envelopes, state, bundling, or anything else first. Nothing else happens until migration is done.
 
@@ -765,7 +722,7 @@ This is explicit authorization to fix everything — even if it takes two rounds
 
 **Two categories of work, handled differently:**
 
-**Category A — deterministic hardening (do ALL of it in one continuous pass, no stops):** TypeScript migration (if needed), data extraction, domain types, API stubs + hooks, state consolidation + provider-mount safety, RBAC (if applicable), backend markers, component library/reuse, design tokens, the missing cases (destructive/empty/error), routing migration, expensive-ops check, accessibility/contrast, code quality, error boundaries, dependency/env hygiene, file hygiene/icons, production readiness, security, design quality. Every one of these is bounded and safe. Work through them continuously — no "want me to continue?", no task menus, no "what remains" lists.
+**Category A — deterministic hardening (do ALL of it in one continuous pass, no stops):** TypeScript migration (if needed), data extraction, domain types, API stubs (Context API + setTimeout, no TanStack), state consolidation + provider-mount safety, RBAC (if applicable), self-documenting data layer, component library/reuse, design tokens, the missing cases (destructive/empty/error), routing migration, expensive-ops check, code quality, error boundaries, dependency/env hygiene, file hygiene/icons, production readiness, security, design quality. Every one of these is bounded and safe. Work through them continuously — no "want me to continue?", no task menus, no "what remains" lists.
 
 **Category B — high-risk surgery (the ONE thing that gets its own round):** decomposing god-components (splitting 1,000–2,000 line files into smaller pieces). This is the single riskiest change — most likely to introduce a runtime break, and most dangerous when attempted late in a long run as context degrades. It gets handled as a deliberate, separately-authorized second round. (Note: only the _file-splitting surgery_ is Category B. The rest of dimension 1 — DOM hierarchy, circular deps, aliases, reuse — is Category A and runs in round one.)
 
@@ -916,16 +873,14 @@ If the user targets a specific concern ("just fix the state management"), apply 
 ```
 src/
 ├── data/               # Extracted mock/seed data (never imported directly by components)
-├── domain.ts           # Canonical data types (TypeScript interfaces)
-├── schemas/            # Zod/Yup/Valibot runtime validation schemas
+├── domain.ts           # Canonical data types (TypeScript interfaces — one source of truth)
 ├── api/
-│   ├── index.ts        # Async stubs with @backend annotations
-│   └── hooks/          # TanStack Query / SWR hooks wrapping API stubs
+│   └── index.ts        # Self-documenting async stub functions (setTimeout-simulated)
 ├── components/
 │   ├── ui/             # Shared reusable primitives (one per pattern)
 │   ├── icons/          # Custom SVG icon components (only if no library equivalent)
 │   └── ConfirmDialog.tsx
-├── contexts/           # One isolated context provider per domain
+├── contexts/           # One isolated context provider per domain (shared data + state)
 ├── hooks/              # Shared custom hooks (non-data-fetching)
 ├── routes/             # react-router setup + guards
 ├── pages/              # Route-level page components
@@ -945,7 +900,7 @@ In **every mode** — start, scaffold, audit, refactor, quick — write a `guide
 
 **If `guidelines.md` already exists in the project:** read it first. Merge — don't blindly overwrite. Keep any project-specific rules the team already wrote; add the vibe-to-prod conventions they're missing. If it conflicts (e.g. it says "use PropTypes"), update it to match the TypeScript-always stance and tell the user what changed.
 
-**If it doesn't exist:** create it covering the same ground as the dimensions, in build-time language: smart/dumb split, no hardcoded data, canonical TS types, API stubs with `@backend` markers, no fetch in components, design tokens, no AI slop, component reuse priority, resilience states, security, accessibility, the feature build sequence. (The full template lives in the skill's `guidelines.md` reference — use it as the basis.)
+**If it doesn't exist:** create it covering the same ground as the dimensions, in build-time language: smart/dumb split, no hardcoded data, canonical TS types, API stubs as self-documenting async functions, no fetch in components, design tokens, no AI slop, component reuse priority, resilience states, security, the feature build sequence. (The full template lives in the skill's `guidelines.md` reference — use it as the basis.)
 
 ## design.md — design system source of truth
 

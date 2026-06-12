@@ -117,13 +117,13 @@ For each HTML page or major section:
 
 - `document.getElementById('x').addEventListener('click', ...)` → React `onClick` handler with `useState`
 - `element.classList.toggle('hidden')` → conditional rendering with state: `{isOpen && <Modal />}`
-- `fetch('https://...')` → move to `api.ts` stub with `@backend` annotation
+- `fetch('https://...')` → move to `api.ts` as a self-documenting async stub (descriptive name + typed return)
 - DOM manipulation (`innerHTML`, `appendChild`) → React state driving JSX
 
 **Forms:**
 
 - `<form>` with `<input>` elements → React controlled components with `useState` or react-hook-form
-- Form validation → keep simple with HTML5 attributes initially; Zod validation added in dimension pass
+- Form validation → keep simple with HTML5 attributes initially; error handling via try/catch added in the dimension pass (no Zod)
 
 ---
 
@@ -153,7 +153,7 @@ If something looks wrong, the tokens or component mapping needs adjusting — no
 
 ---
 
-## Step 8: Hand off to the 20 dimensions
+## Step 8: Hand off to the 18 dimensions
 
 The project is now Vite + React + TypeScript with shadcn components and a design token system sourced from design.md. Run the normal vibe-to-prod dimension pass. Most dimensions should have a head start because:
 
@@ -162,7 +162,7 @@ The project is now Vite + React + TypeScript with shadcn components and a design
 - Dimension 8 (component library): shadcn used from the start
 - Dimension 9 (design tokens): extracted from design.md into theme
 
-The remaining dimensions (error boundaries, resilience, accessibility, security, design quality) apply as normal.
+The remaining dimensions (error boundaries, resilience, security, design quality) apply as normal.
 
 ---
 

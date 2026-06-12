@@ -34,12 +34,6 @@ npm install
 ### Step 2: Install core dependencies
 
 ```bash
-# Data fetching
-npm install @tanstack/react-query
-
-# Runtime validation
-npm install zod
-
 # UI primitives
 npm install @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-tooltip
 # Or install shadcn/ui (recommended — includes all Radix primitives pre-styled):
@@ -50,10 +44,9 @@ npm install lucide-react
 
 # Routing
 npm install react-router-dom
-
-# State management (global UI state)
-npm install zustand
 ```
+
+Deliberately NOT installed: TanStack Query, SWR, Zod. Data is served by plain async stub functions (setTimeout-simulated) shared through React Context API. The developer adds a real data-fetching library their own way at backend integration — scaffolding it now imposes a pattern they may not want and a provider that can crash if unmounted.
 
 ### Step 3: Update `tsconfig.json`
 
@@ -94,27 +87,24 @@ Create this exact structure inside `src/`:
 ```
 src/
 ├── api/
-│   ├── index.ts          # API stub functions with @backend annotations
-│   └── hooks/            # TanStack Query hooks
+│   └── index.ts          # Self-documenting async stub functions (setTimeout-simulated)
 ├── components/
 │   ├── ui/               # shadcn/Radix primitives
 │   ├── icons/            # Custom SVG icons (only if no lucide-react match)
 │   └── ConfirmDialog.tsx
-├── contexts/             # One file per domain context
+├── contexts/             # One file per domain context (shared data + state via Context API)
 ├── data/                 # Mock seed data (consumed only by api/index.ts)
-├── domain.ts             # TypeScript interfaces
-├── hooks/                # Shared non-data-fetching hooks
+├── domain.ts             # TypeScript interfaces — one source of truth for all shared types
+├── hooks/                # Shared hooks (e.g. useReducer-based screen state)
 ├── pages/                # Route-level page components
 ├── routes/               # react-router setup + guards
-├── schemas/              # Zod validation schemas
-├── store/                # Zustand global UI state stores
 └── utils/                # Helpers, formatters
 ```
 
 Create placeholder files to establish the structure:
 
 ```bash
-mkdir -p src/api/hooks src/components/ui src/components/icons src/contexts src/data src/hooks src/pages src/routes src/schemas src/store src/utils
+mkdir -p src/components/ui src/components/icons src/contexts src/data src/hooks src/pages src/routes src/utils
 touch src/domain.ts src/api/index.ts
 ```
 
@@ -123,67 +113,88 @@ touch src/domain.ts src/api/index.ts
 **`src/domain.ts`** — empty, ready for interfaces:
 
 ```ts
-// Add your data interfaces here
+// One source of truth for every data shape the UI renders.
+// Components import their types from here — they never define their own.
 // Example:
-// export interface User {
-//   id: string;
-//   name: string;
+// export interface HealthStatus {
+//   status: 'ok' | 'degraded' | 'down';
 // }
-
-export interface ApiResponse<T> {
-  data: T;
-  meta: {
-    total?: number;
-    page?: number;
-    [key: string]: unknown;
-  };
-}
 ```
 
 **`src/api/index.ts`** — delay utility + first stub:
 
 ```ts
+import type { HealthStatus } from "@/domain";
+
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// @backend GET /api/health
-// Auth: None
-// Response: { data: { status: string } }
-export async function checkHealth(): Promise<ApiResponse<{ status: string }>> {
+// Returns service health. Swap the body for a real API call at integration.
+export async function checkHealth(): Promise<HealthStatus> {
   await delay(300);
-  return { data: { status: "ok" }, meta: {} };
+  return { status: "ok" };
 }
 ```
 
-**`src/api/hooks/index.ts`** — base query client setup:
+The descriptive name + typed return is the integration map — no annotation system.
 
-```ts
-import { QueryClient } from "@tanstack/react-query";
+**`src/contexts/AppDataContext.tsx`** — share data across screens via Context API (no TanStack):
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 1,
-    },
-  },
-});
+```tsx
+import { createContext, useContext, useEffect, useState } from "react";
+import { checkHealth } from "@/api";
+import type { HealthStatus } from "@/domain";
+
+interface AppData {
+  health: HealthStatus | null;
+  loading: boolean;
+  error: string | null;
+}
+
+const AppDataContext = createContext<AppData | null>(null);
+
+export function AppDataProvider({ children }: { children: React.ReactNode }) {
+  const [health, setHealth] = useState<HealthStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    checkHealth()
+      .then(setHealth)
+      .catch(() => setError("Failed to load."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <AppDataContext.Provider value={{ health, loading, error }}>
+      {children}
+    </AppDataContext.Provider>
+  );
+}
+
+export function useAppData() {
+  const ctx = useContext(AppDataContext);
+  if (!ctx) throw new Error("useAppData must be used within AppDataProvider");
+  return ctx;
+}
 ```
 
-**`src/main.tsx`** — wrap app with QueryClientProvider:
+**`src/main.tsx`** — wrap app with the data provider (mount it, or the hook throws at runtime):
 
 ```tsx
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/api/hooks";
+import { BrowserRouter } from "react-router-dom";
+import { AppDataProvider } from "@/contexts/AppDataContext";
 import App from "./App";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
+    <BrowserRouter>
+      <AppDataProvider>
+        <App />
+      </AppDataProvider>
+    </BrowserRouter>
   </React.StrictMode>,
 );
 ```
@@ -253,7 +264,7 @@ Tell the user:
 
 > "Your project is scaffolded and ready. Every component you build should go in `src/components/`. Pages go in `src/pages/`. Data shapes go in `src/domain.ts`. API connections go in `src/api/index.ts`.
 >
-> When you're ready to prepare the project for developer handoff, run `/vibe-to-prod audit` and I'll check everything against the 19-dimension framework."
+> When you're ready to prepare the project for developer handoff, run `/vibe-to-prod audit` and I'll check everything against the 18-dimension framework."
 
 ---
 
@@ -269,9 +280,11 @@ This command sets up TypeScript, Tailwind, ESLint, App Router, `src/` directory,
 Then install additional dependencies:
 
 ```bash
-npm install @tanstack/react-query zod lucide-react zustand
+npm install lucide-react
 npx shadcn@latest init
 ```
+
+(No TanStack Query, Zod, or Zustand — same reasoning as the Vite path: data through async stubs + Context API, validation left to the backend dev.)
 
 Folder structure for Next.js:
 
@@ -284,30 +297,25 @@ src/
 │   ├── not-found.tsx     # 404 page
 │   └── loading.tsx       # Loading state
 ├── api/
-│   ├── index.ts          # API stub functions
-│   └── hooks/            # TanStack Query hooks
+│   └── index.ts          # Self-documenting async stub functions
 ├── components/
 │   ├── ui/               # shadcn/Radix primitives
 │   └── ConfirmDialog.tsx
+├── contexts/             # Domain data + state via Context API
 ├── data/                 # Mock seed data
 ├── domain.ts             # TypeScript interfaces
-├── schemas/              # Zod schemas
-├── store/                # Zustand stores
 └── utils/                # Helpers
 ```
 
-Wrap the root layout with QueryClientProvider in a client component:
+Wrap the root layout with the data provider in a client component:
 
 ```tsx
 // src/components/Providers.tsx
 "use client";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/api/hooks";
+import { AppDataProvider } from "@/contexts/AppDataContext";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
+  return <AppDataProvider>{children}</AppDataProvider>;
 }
 ```
 
@@ -337,6 +345,6 @@ export default function RootLayout({
 1. **Never create placeholder components with hardcoded data.** The scaffold sets up structure only — no UI yet.
 2. **Always create `.env.example`.** Even if empty, it establishes the pattern.
 3. **Always set up path aliases.** `@/*` from day one prevents a painful migration later.
-4. **Always wrap the app with QueryClientProvider.** Forgetting this causes confusing errors when the first hook is added.
+4. **Mount any Context provider you create in the tree.** An unmounted provider makes its hook throw at runtime — verify it wraps the app.
 5. **Always create `ConfirmDialog.tsx`.** Destructive actions need this from the first feature built.
 6. **Tell the user what to do next.** End scaffold mode with a clear summary of where things go.

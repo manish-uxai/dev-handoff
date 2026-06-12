@@ -36,25 +36,31 @@ One source of truth for every data entity.
 
 - Interfaces in `/src/types/domain.ts` (or `/src/domain.ts`) — this project is TypeScript
 - No duplicated or conflicting definitions. Every type complete — all fields the UI uses.
-- Add runtime validation (Zod, or whatever's already installed) so bad API data is caught at the boundary.
+- Components import their types from here — they don't define their own.
+- Handle bad API data with plain try/catch and a visible error state. Don't add Zod or a runtime-validation library — the backend developer decides how responses are validated at integration.
 
 ---
 
-## 4. API Stubs With Backend Markers
+## 4. API Stubs — Self-Documenting Async Functions
 
-Every data operation is a typed async function in `/src/services/api.ts` (or `/src/api/index.ts`).
+Every data operation is a typed async function in `/src/api.ts` (or `/src/api/index.ts`).
 
-- Returns mock data with simulated latency (`await delay(300)`) today; swap the body for a real call later.
-- **Every stub carries a `// @backend` annotation** with method, path, auth, and response shape. This is the developer's integration map — don't skip it.
-- Components consume data through these functions (or hooks wrapping them), never by importing `/src/data/` directly and never via inline `fetch()`.
+- Returns mock data with simulated latency (`await delay(300)` via `setTimeout`) today; swap the body for a real call later.
+- **Descriptive names are the contract:** `getPatients()`, `getStudies()`, `getDocuments()` — not `fetchData()`. A developer reads `api.ts` and sees every endpoint to build and its return shape from the names and types alone. No `@backend` annotations, no separate contract file.
+- Return types reference `domain.ts` interfaces.
+- Components consume data through these functions (or a Context that calls them), never by importing `/src/data/` directly and never via inline `fetch()`.
 
+```ts
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Returns the patient list. Swap the body for a real API call at integration.
+export async function getPatients(): Promise<Patient[]> {
+  await delay(300);
+  return MOCK_PATIENTS;
+}
 ```
-// @backend GET /api/patients
-// Auth: Bearer token (JWT)
-// Response: { data: Patient[]; meta: { total: number } }
-```
 
-Wrap stubs in a data-fetching hook layer (TanStack Query or whatever's installed) so components get loading/error/caching states automatically.
+Share data across screens via React **Context API** (or Redux), calling these stubs internally. Do NOT add TanStack Query, SWR, or a `QueryClientProvider` — the developer wires real data fetching their own way at integration.
 
 ---
 
@@ -134,7 +140,7 @@ Never hand-roll a button, dropdown, modal, or tooltip when shadcn has one. Never
 
 ## 9. State Management
 
-- No chains of 5+ `useState` hooks in one component — consolidate into a reducer or store (Zustand, or whatever's installed).
+- No chains of 5+ `useState` hooks in one component — consolidate into a useReducer with named actions, or a single combined state object.
 - Read-only enforcement: guarded setters + the HTML `inert` attribute on editable containers. Define roles as a union type (TS) or constants object (JS).
 
 ---
@@ -167,12 +173,9 @@ Wrap major views in an error boundary so one failure doesn't crash everything.
 
 ---
 
-## 13. Accessibility
+## 13. Accessibility (only if the client requires it)
 
-- Semantic HTML5 (`<nav>`, `<main>`, `<header>`, `<button>`) — no div soup
-- `aria-label` on interactive elements, focus trapping in modals, visible focus states
-- `aria-live` regions for dynamic updates
-- (shadcn/Radix primitives give you most of this automatically)
+Not a default requirement for handoff — treat it as scope-dependent. shadcn/Radix primitives already give you accessible semantics, focus trapping, and keyboard support for free, so using the component library (section 8) covers most of this without extra effort. Only invest in explicit accessibility work (manual `aria-label`s, custom keyboard navigation, responsive/mobile support) when the client or project explicitly asks for it — it's extra effort that should be scoped, not assumed.
 
 ---
 
@@ -208,7 +211,7 @@ When adding a feature, follow this order so it's born production-ready:
 
 1. **Types** — add domain types to the canonical file
 2. **Mock data** — create `/src/data/mock-[feature].ts`, barrel-export it
-3. **API stubs** — add typed async functions with `// @backend` markers
+3. **API stubs** — add typed async functions with descriptive names (`getStudies()`), returning mock data via `setTimeout`; share through Context API
 4. **Component** — build it: consume data via API/hooks, use tokens, reuse shadcn primitives, handle loading/error/empty, no inline data or hardcoded colors
 5. **Navigation** — wire into routing
 6. **Docs** — update README if it adds a screen, data file, or API domain

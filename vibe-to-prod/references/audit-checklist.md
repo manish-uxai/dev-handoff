@@ -1,4 +1,4 @@
-# 19-Dimension Audit Checklist
+# 18-Dimension Audit Checklist
 
 Copy this checklist when auditing a vibe-coded prototype for production readiness.
 
@@ -10,7 +10,7 @@ Pre-flight:
 Step 0:
 - [ ] Discovery pass — map the project purpose, stack, conventions before judging anything
 - [ ] Stack detected — React/TS, React/JS, Next.js, or Plain HTML
-  - React/TS → proceed with 19 dimensions
+  - React/TS → proceed with 18 dimensions
   - React/JS → note "will be migrated to TS as first refactor step" (don't flag missing PropTypes)
   - Plain HTML → note "will be converted to Vite + React + TS in refactor mode"
   - Unsupported framework → stop and redirect
@@ -27,22 +27,21 @@ Audit Progress:
 - [ ] 1b. Reusability Pass (SEPARATE step) — scan entire codebase for: similarly named component files across folders, overlapping className patterns, copy-pasted JSX structures, files serving same purpose; list every pattern with file locations; if not performed mark INCOMPLETE
 - [ ] 2.  Data Extraction — MOCK_/seed data in /src/data/, not inline in components
 - [ ] 3.  Canonical Domain Types — domain.ts with complete, non-duplicated TypeScript interfaces matching actual runtime usage
-- [ ] 4.  API Contract Stubs — all data through api.ts; all stubs carry @backend annotations; NO component calls fetch() or imports data directly (ALL OR NOTHING — any direct fetch = fail)
-- [ ] 5.  State Management — context/reducers; no 5+ useState chains; ANY new provider must be mounted in the tree (verify at runtime, not just build)
+- [ ] 4.  API Contract Stubs — all data through api.ts as async stubs (setTimeout-simulated, returning mock data); Context API for shared data; NO TanStack/SWR/QueryClientProvider; NO component calls fetch() or imports data directly (ALL OR NOTHING — any direct fetch/direct-import = fail)
+- [ ] 5.  State Management — reducer with named actions for complex screens (or single combined object / useFieldArray for nested); no 5+ useState chains; ANY new provider must be mounted in the tree (verify at runtime, not just build)
 - [ ] 6.  Read-Only / RBAC (CONDITIONAL) — only if app has roles/read-only; if not, mark N/A, don't flag absence
-- [ ] 7.  Backend Integration Markers — @backend annotations in code match domain.ts shapes
+- [ ] 7.  Self-Documenting Data Layer — api.ts stubs have descriptive names (getStudies not fetchData) and domain.ts return types, so a dev reads api.ts and sees every endpoint to build; NO @backend annotation system, NO separate contract file
 - [ ] 8.  Component Library Compliance & Reuse — reuse existing component first, else import shadcn/Radix, never hand-roll a duplicate; consolidate duplicate components serving the same purpose; ACTIVELY SCAN, if no scan mark UNEVALUATED
 - [ ] 9.  Design Token Compliance — no hardcoded colors, spacing, sizing, typography, or raw pixels in inline styles, CSS, or Tailwind arbitrary values
-- [ ] 10. Missing Cases + Real-Data Resilience — ConfirmDialog gates destructive actions; every list/table has empty state; every fallible action has error state; PLUS components survive real data: null/undefined fields, text overflow, 0/1/500-item lengths, no fixed pixel widths that block adapting (the cases vibecoding forgets — happy path and 3 mock items only)
-- [ ] 11. Routing & Navigation (CONDITIONAL) — single-page: skip. Multi-page with no router: force react-router. Multi-page with a router: leave it.
+- [ ] 10. Missing Cases + Real-Data Resilience — ConfirmDialog gates destructive actions; every list/table has empty state; every fallible action has error state; long-running async moves user off a blocked screen (status + reload, not frozen UI); PLUS components survive real data: null/undefined fields, text overflow, 0/1/500-item lengths, no fixed pixel widths that block adapting
+- [ ] 11. Routing & Navigation (CONDITIONAL) — single-page: skip. Multi-page with no router: force react-router (follow conditional-to-router.md). Multi-page with a router: leave it.
 - [ ] 12. Expensive Operations (NARROW) — do NOT add useMemo/useCallback as blanket practice (anti-pattern). Only flag genuinely expensive ops that visibly lag with real data. Usually passes.
-- [ ] 13. Accessibility & Readability — CHECK CONTRAST FIRST (dark-on-dark / light-on-light unreadable text); then semantic HTML, ARIA, keyboard nav, focus
-- [ ] 14. Code Quality (TOP-TIER) — TypeScript only: zero any types, no @ts-ignore/as any, strict interfaces, organized imports, no dead code, consistent patterns
-- [ ] 15. Error Boundaries & Component Resilience — route-level error boundaries; PLUS every data-consuming component handles loading, error, and empty states
-- [ ] 16. Dependency, Environment & Onboarding — no unused deps, pinned versions, .env.example present, README has install+run instructions
-- [ ] 17. File Hygiene & Icons — no orphans, unused imports, dead code; raw/inline SVGs (esp. from Figma MCP) replaced with real library icons
-- [ ] 18. Security Basics — no hardcoded secrets, no dangerouslySetInnerHTML with unsanitized data, npm audit clean, .env not committed
-- [ ] 19. Design Quality — no AI-slop (decorative accent borders, one-off colors), all colors mapped to tokens, severity separate from metric color in charts
+- [ ] 13. Code Quality (TOP-TIER) — TypeScript only: tsconfig present + strict; zero any types, no @ts-ignore/as any, strict interfaces, organized imports, no dead code, consistent patterns
+- [ ] 14. Error Boundaries & Component Resilience — route-level error boundaries; PLUS every data-consuming component handles loading, error, and empty states
+- [ ] 15. Dependency, Environment & Onboarding — no unused deps (run depcheck), pinned versions, .env.example present, README has install+run instructions
+- [ ] 16. File Hygiene & Icons — no orphans (run reachability script), unused imports, dead code; raw/inline SVGs (esp. from Figma MCP) replaced with real library icons
+- [ ] 17. Security Basics — no hardcoded secrets, no dangerouslySetInnerHTML with unsanitized data, npm audit clean, .env not committed
+- [ ] 18. Design Quality — no AI-slop (decorative accent borders, one-off colors), all colors mapped to tokens, severity separate from metric color in charts
 
 Output quality:
 - [ ] Every finding pairs a technical term with a plain consequence (term teaches, consequence clarifies)
@@ -137,10 +136,13 @@ grep -RInE 'const\s+\w+\s*=\s*\[' src/components src/pages --include='*.jsx' --i
 # Components fetching directly (dimension 4 — all or nothing)
 grep -RInE 'fetch\(|axios\.|\.get\(|\.post\(' src/components src/pages --include='*.jsx' --include='*.tsx' --include='*.js' --include='*.ts' | head -80
 
-# === DIMENSION 7: BACKEND MARKERS ===
+# === DIMENSION 7: SELF-DOCUMENTING DATA LAYER ===
 
-# Missing @backend annotations in api file
-grep -nE 'export\s+(async\s+)?function' src/api.ts src/api.js src/services/api.ts src/services/api.js 2>/dev/null | grep -v '@backend'
+# List exported stub functions — names should be descriptive (getStudies, not fetchData/loadStuff)
+grep -nE 'export\s+(async\s+)?function' src/api.ts src/api/index.ts 2>/dev/null
+
+# Vague/undescriptive stub names (flag for renaming)
+grep -nE 'export\s+(async\s+)?function\s+(fetchData|loadData|getData|loadStuff|getStuff)\b' src/api.ts src/api/index.ts 2>/dev/null
 
 # Hardcoded API URLs
 grep -RInE 'localhost|127\.0\.0\.1|http://|https://' src --include='*.jsx' --include='*.tsx' --include='*.js' --include='*.ts' --exclude='*.test.*' | head -80
@@ -186,7 +188,14 @@ grep -RInE 'react-router-dom|BrowserRouter|Routes|Route|useNavigate' src --inclu
 # Only flag genuinely heavy ops in hot paths; missing memoization is NOT a finding.
 grep -RInE '\.(sort|filter|map|reduce)\([^)]*\)\s*\.(sort|filter|map|reduce)' src/components --include='*.tsx' | head -20
 
-# === DIMENSION 14: CODE QUALITY (top-tier) ===
+# === DIMENSION 13: CODE QUALITY (top-tier) ===
+
+# tsconfig present + strict mode (HARD blocker — TS without strict tsconfig gives zero type safety)
+[ -f tsconfig.json ] && echo "tsconfig.json present" || echo "MISSING tsconfig.json (HARD FAIL — add it)"
+grep -nE '"strict"\s*:\s*true' tsconfig.json 2>/dev/null || echo "strict mode NOT enabled in tsconfig (HARD FAIL)"
+
+# Real type check (deterministic — beats grepping for 'any'); run if tsconfig exists
+npx tsc --noEmit 2>&1 | tail -20 || echo "tsc not runnable (note and continue)"
 
 # any types and escape hatches (must be eradicated)
 grep -RInE ':\s*any\b|as any|@ts-ignore|@ts-nocheck' src --include='*.tsx' --include='*.ts' | head -40
@@ -194,7 +203,7 @@ grep -RInE ':\s*any\b|as any|@ts-ignore|@ts-nocheck' src --include='*.tsx' --inc
 # JSX/JS files present = migration to TS required first (HARD GATE, not a PropTypes finding)
 echo "jsx_js_files=$(find src -name '*.jsx' -o -name '*.js' | grep -v test | wc -l | tr -d ' ') (if > 0, migrate to TS as MANDATORY first step before any other dimension)"
 
-# === DIMENSION 15: RESILIENCE ===
+# === DIMENSION 14: RESILIENCE ===
 
 # Error boundaries
 grep -RInE 'ErrorBoundary|componentDidCatch|getDerivedStateFromError' src --include='*.jsx' --include='*.tsx' --include='*.js' --include='*.ts' | head -40
@@ -211,16 +220,10 @@ grep -RIn 'ConfirmDialog\|confirm(' src --include='*.jsx' --include='*.tsx' --in
 # Empty/error state presence (low count relative to data views = likely missing)
 grep -RInE 'empty|no data|no results|isError|hasError' src/components --include='*.jsx' --include='*.tsx' --include='*.ts' | wc -l
 
-# === DIMENSION 13: ACCESSIBILITY & READABILITY ===
+# Long-running async that blocks the screen (setTimeout/Promise-delay with no off-screen escape)
+grep -RInE 'setTimeout|new Promise\(.*setTimeout' src/app/components --include='*.tsx' | head -20
 
-# Contrast risk — same-tone bg+text pairings (dark-on-dark, light-on-light)
-grep -RInE 'bg-(black|gray-9|slate-9|zinc-9|neutral-9).*text-(black|gray-9|slate-9|zinc-9)|bg-(white|gray-1|slate-1).*text-(white|gray-1|slate-1)' src --include='*.jsx' --include='*.tsx' | head -20
-# Manual review still needed — grep only catches obvious Tailwind pairings, not token-based ones
-
-# Semantic HTML + ARIA
-grep -RInE '<nav|<main|<header|<aside|aria-label|aria-live|role=' src/components src/containers --include='*.jsx' --include='*.tsx' | wc -l
-
-# === DIMENSION 16 & 17: HYGIENE ===
+# === DIMENSION 15 & 16: HYGIENE ===
 
 # Unused dependencies
 npx depcheck --skip-missing 2>/dev/null
@@ -243,7 +246,7 @@ else
   echo "README.md MISSING"
 fi
 
-# === DIMENSION 19: SECURITY BASICS ===
+# === DIMENSION 17: SECURITY BASICS ===
 
 # Hardcoded API keys / tokens / secrets in source
 grep -RInE 'sk_live|pk_live|sk_test|pk_test|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|api_key\s*[:=]\s*["\x27][a-zA-Z0-9]' src --include='*.jsx' --include='*.tsx' --include='*.js' --include='*.ts' | head -20
@@ -265,7 +268,7 @@ grep -q '\.env' .gitignore 2>/dev/null && echo '.env is in .gitignore' || echo '
 # This can be slow and verbose. Run it with a timeout. If it doesn't return quickly, note "run npm audit manually" and move on.
 timeout 30 npm audit --audit-level=high 2>/dev/null | tail -15 || echo "npm audit skipped — run manually before handoff"
 
-# === DIMENSION 20: DESIGN QUALITY (AI SLOP) ===
+# === DIMENSION 18: DESIGN QUALITY (AI SLOP) ===
 
 # Decorative accent borders on cards (AI-dashboard cliché)
 grep -RInE 'border-l-[0-9]|border-r-[0-9]|borderLeft|borderRight' src/components --include='*.jsx' --include='*.tsx' | grep -iE 'card' | head -20
@@ -276,7 +279,7 @@ grep -RInE 'bg-(red|blue|green|gray|slate|zinc|yellow|orange|purple|pink)-[0-9]|
 # Inline color styles (should be tokens)
 grep -RInE "style=\{\{[^}]*color[^}]*#" src/components --include='*.jsx' --include='*.tsx' | head -20
 
-# === DIMENSION 18: PRODUCTION READINESS ===
+# === DIMENSION 10 (cont.): REAL-DATA RESILIENCE (null-access & fixed-width) ===
 
 # Components with no null/undefined guards
 grep -RInE 'props\.\w+\.' src/components --include='*.jsx' --include='*.tsx' | grep -v '?.' | grep -v '&&' | head -40
@@ -306,27 +309,27 @@ grep -RInE 'onMouse|onHover|onFocus.*set[A-Z]' src/components --include='*.jsx' 
 
 ## Vibecode smell quick-check
 
-| Smell                              | Grep                                                                                                                  |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| God component (400+ lines)         | `find src \( -name '*.tsx' -o -name '*.jsx' \) \| xargs -I {} awk 'END{if(NR>400)print FILENAME,NR}' {}`              |
-| Duplicate component names          | `find src -name '*.jsx' -o -name '*.tsx' \| xargs -I {} basename {} \| sort \| uniq -d`                               |
-| Direct mock import                 | `grep -RInE 'MOCK_\|from.*/data/' src/components src/pages --include='*.jsx'`                                         |
-| Direct fetch in component          | `grep -RInE 'fetch\(\|axios\.' src/components src/pages --include='*.jsx'`                                            |
-| Reinvented primitive               | `grep -RInEi 'dropdown\|modal\|tooltip\|popover' src/components --include='*.jsx' \| grep -Evi 'radix\|shadcn\|/ui/'` |
-| Hardcoded hex in Tailwind          | `grep -RInE '\[#[0-9a-fA-F]{3,8}\]' src --include='*.jsx'`                                                            |
-| Hardcoded spacing in Tailwind      | `grep -RInE '\[[0-9.]+px\]' src --include='*.jsx'`                                                                    |
-| Inline style raw pixels            | `grep -RInE "style=\{\{[^}]*(padding\|margin\|width\|height\|fontSize)[^}]*[0-9]+px" src --include='*.jsx'`           |
-| Missing loading/empty states       | `grep -RIL 'isLoading\|loading\|Skeleton\|Spinner\|empty' src/components --include='*.jsx'`                           |
-| No null guards                     | `grep -RInE 'props\.\w+\.' src/components --include='*.jsx' \| grep -v '?.' \| head -40`                              |
-| Hardcoded labels                   | `grep -RInE "placeholder=['\"][A-Z]\|label=['\"][A-Z]" src/components --include='*.jsx'`                              |
-| Missing @backend annotations       | `grep -nE 'export\s+(async\s+)?function' src/api.js src/services/api.js 2>/dev/null \| grep -v '@backend'`            |
-| Interaction: setTimeout visuals    | `grep -RInE 'setTimeout\|setInterval' src/components --include='*.jsx'`                                               |
-| Fixed widths preventing responsive | `grep -RInE 'width:\s*[0-9]{3,}px\|w-\[[0-9]{3,}px\]' src/components --include='*.jsx'`                               |
-| Hardcoded API keys                 | `grep -RInE 'sk_live\|pk_live\|AKIA\|api_key\s*[:=]' src --include='*.jsx' --include='*.js'`                          |
-| dangerouslySetInnerHTML            | `grep -RIn 'dangerouslySetInnerHTML' src --include='*.jsx' --include='*.tsx'`                                         |
-| README missing setup               | `grep -qiE 'npm install\|npm run dev' README.md \|\| echo 'MISSING'`                                                  |
-| Circular imports                   | Check if file A imports B and B imports A                                                                             |
-| Relative deep imports              | `grep -RInE '\.\./\.\.' src --include='*.jsx' --include='*.tsx' \| head -20`                                          |
+| Smell                              | Grep                                                                                                                            |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| God component (400+ lines)         | `find src \( -name '*.tsx' -o -name '*.jsx' \) \| xargs -I {} awk 'END{if(NR>400)print FILENAME,NR}' {}`                        |
+| Duplicate component names          | `find src -name '*.jsx' -o -name '*.tsx' \| xargs -I {} basename {} \| sort \| uniq -d`                                         |
+| Direct mock import                 | `grep -RInE 'MOCK_\|from.*/data/' src/components src/pages --include='*.jsx'`                                                   |
+| Direct fetch in component          | `grep -RInE 'fetch\(\|axios\.' src/components src/pages --include='*.jsx'`                                                      |
+| Reinvented primitive               | `grep -RInEi 'dropdown\|modal\|tooltip\|popover' src/components --include='*.jsx' \| grep -Evi 'radix\|shadcn\|/ui/'`           |
+| Hardcoded hex in Tailwind          | `grep -RInE '\[#[0-9a-fA-F]{3,8}\]' src --include='*.jsx'`                                                                      |
+| Hardcoded spacing in Tailwind      | `grep -RInE '\[[0-9.]+px\]' src --include='*.jsx'`                                                                              |
+| Inline style raw pixels            | `grep -RInE "style=\{\{[^}]*(padding\|margin\|width\|height\|fontSize)[^}]*[0-9]+px" src --include='*.jsx'`                     |
+| Missing loading/empty states       | `grep -RIL 'isLoading\|loading\|Skeleton\|Spinner\|empty' src/components --include='*.jsx'`                                     |
+| No null guards                     | `grep -RInE 'props\.\w+\.' src/components --include='*.jsx' \| grep -v '?.' \| head -40`                                        |
+| Hardcoded labels                   | `grep -RInE "placeholder=['\"][A-Z]\|label=['\"][A-Z]" src/components --include='*.jsx'`                                        |
+| Vague stub names                   | `grep -nE 'export\s+(async\s+)?function\s+(fetchData\|loadData\|getData\|loadStuff)\b' src/api.ts src/api/index.ts 2>/dev/null` |
+| Interaction: setTimeout visuals    | `grep -RInE 'setTimeout\|setInterval' src/components --include='*.jsx'`                                                         |
+| Fixed widths preventing responsive | `grep -RInE 'width:\s*[0-9]{3,}px\|w-\[[0-9]{3,}px\]' src/components --include='*.jsx'`                                         |
+| Hardcoded API keys                 | `grep -RInE 'sk_live\|pk_live\|AKIA\|api_key\s*[:=]' src --include='*.jsx' --include='*.js'`                                    |
+| dangerouslySetInnerHTML            | `grep -RIn 'dangerouslySetInnerHTML' src --include='*.jsx' --include='*.tsx'`                                                   |
+| README missing setup               | `grep -qiE 'npm install\|npm run dev' README.md \|\| echo 'MISSING'`                                                            |
+| Circular imports                   | Check if file A imports B and B imports A                                                                                       |
+| Relative deep imports              | `grep -RInE '\.\./\.\.' src --include='*.jsx' --include='*.tsx' \| head -20`                                                    |
 
 ---
 

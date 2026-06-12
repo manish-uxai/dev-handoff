@@ -2,7 +2,7 @@
 
 > **This is the mandatory first step for any JavaScript React codebase.** vibe-to-prod always outputs TypeScript — when the stack is JSX/JS, the codebase is migrated to TypeScript before any other dimension work. This is automatic; the user is not asked. Follow these steps in order. Do not skip steps. Do not introduce `any` types as a shortcut — a migration full of `any` is worse than staying in JavaScript.
 >
-> **This migration satisfies dimension 14 completely.** Once migrated, every component has TypeScript interfaces describing its props. Do NOT add PropTypes afterward — interfaces replace them entirely. PropTypes on a TypeScript codebase is redundant, conflicting, and wrong.
+> **This migration satisfies dimension 13 (Code Quality) completely.** Once migrated, every component has TypeScript interfaces describing its props. Do NOT add PropTypes afterward — interfaces replace them entirely. PropTypes on a TypeScript codebase is redundant, conflicting, and wrong.
 
 ---
 
@@ -145,37 +145,25 @@ Add return types to every function using the interfaces from `domain.ts`.
 **Before:**
 
 ```js
-// @backend GET /api/patients
 export async function getPatients() {
   await delay(300);
-  return { data: MOCK_PATIENTS, meta: { total: MOCK_PATIENTS.length } };
+  return MOCK_PATIENTS;
 }
 ```
 
 **After:**
 
 ```ts
-// @backend GET /api/patients
-// Auth: Bearer token (JWT)
-// Response: { data: Patient[]; meta: { total: number } }
-export async function getPatients(): Promise<ApiResponse<Patient[]>> {
+import type { Patient } from "./domain";
+
+// Returns the patient list. Swap the body for a real API call at integration.
+export async function getPatients(): Promise<Patient[]> {
   await delay(300);
-  return { data: MOCK_PATIENTS, meta: { total: MOCK_PATIENTS.length } };
+  return MOCK_PATIENTS;
 }
 ```
 
-Add the `ApiResponse` generic type to `domain.ts`:
-
-```ts
-export interface ApiResponse<T> {
-  data: T;
-  meta: {
-    total?: number;
-    page?: number;
-    [key: string]: unknown;
-  };
-}
-```
+The descriptive name and typed return are the integration map — no `@backend` annotation needed. Stubs return plain typed data (`Promise<Patient[]>`), not a `{ data, meta }` envelope — keep them simple; the developer shapes real responses at integration.
 
 ---
 
@@ -281,29 +269,25 @@ import { getPatients } from "@/api";
 
 ---
 
-## Step 10: Add Zod schemas
+## Step 10: Add error handling at the data boundary
 
-After `domain.ts` is stable, add runtime validation schemas in `src/schemas/`:
-
-```ts
-// src/schemas/patient.ts
-import { z } from "zod";
-
-export const PatientSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  status: z.enum(["active", "inactive"]),
-  notes: z.string().optional(),
-});
-
-export type Patient = z.infer<typeof PatientSchema>;
-```
-
-Update `domain.ts` to re-export from schemas so there's one source of truth:
+Do NOT add Zod or any runtime-validation library. The backend developer decides how responses are validated at integration. Instead, wrap the async stub calls in try/catch so a failure surfaces as a visible error state rather than a crash:
 
 ```ts
-export type { Patient } from "@/schemas/patient";
+async function loadPatients() {
+  try {
+    setLoading(true);
+    const patients = await getPatients();
+    setPatients(patients);
+  } catch (err) {
+    setError("Could not load patients.");
+  } finally {
+    setLoading(false);
+  }
+}
 ```
+
+Typed interfaces from `domain.ts` give you the shape; try/catch gives you the failure path. That's all the handoff needs.
 
 ---
 

@@ -6,6 +6,9 @@ You designed something great — in Figma Make, with an AI agent, or by hand. No
 
 No terminal expertise required. You talk to your AI agent in plain English; the skill does the rest.
 
+> _"Thanks to this code, we don't have to worry about the UI at all — we can focus entirely on functionality."_
+> — Frontend developer, after receiving a vibe-to-prod–hardened handoff
+
 ---
 
 ## What it does
@@ -17,7 +20,7 @@ vibe-to-prod takes the UI you've already built and makes it production-grade:
 - **Uses real components** — replaces hand-rolled UI with shadcn/Radix components developers trust
 - **Keeps your design** — your colors, spacing, and layout are preserved exactly; only the code underneath changes
 - **Captures your design system** — extracts a `design.md` that becomes the single source of truth for your brand
-- **Checks 19 production dimensions** — security, accessibility, error & empty states, routing, design quality, and more
+- **Checks 18 production dimensions** — security, error & empty states, routing, design tokens, design quality, and more
 - **Hands off cleanly** — your developer opens the project and starts integrating immediately
 
 The result: weeks of developer rebuild time saved.
@@ -96,13 +99,13 @@ This file is the **source of truth**. The code's styling is generated from it. W
 
 ---
 
-## What gets checked (the 19 dimensions)
+## What gets checked (the 18 dimensions)
 
-The skill evaluates your code across 19 production dimensions, grouped into:
+The skill evaluates your code across 18 production dimensions, grouped into:
 
 - **Architecture & data** — component structure, clean data extraction, typed API stubs, state management
 - **UI quality** — design tokens, component library compliance, no AI-slop styling, performance
-- **Robustness** — accessibility, error boundaries, loading/empty states, production resilience
+- **Robustness** — error boundaries, loading/empty/error states, real-data resilience
 - **Handoff & security** — dependency hygiene, onboarding setup, security basics, design quality
 
 Every finding explains what it is and why it matters — so you learn as you go, growing from designer toward design engineer.
