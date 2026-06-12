@@ -5,7 +5,7 @@ license: MIT
 compatibility: Works with Claude Code, OpenAI Codex, Cursor, GitHub Copilot, and other agentskills.io-compatible agents. Supports React and Next.js projects. JavaScript codebases are migrated to TypeScript automatically — output is always TypeScript. Other stacks trigger guided redirection.
 metadata:
   author: vibe-to-prod
-  version: "5.5.0"
+  version: "5.6.0"
   framework: 20-dimension-handoff
 ---
 
@@ -663,7 +663,15 @@ Output format must follow [references/audit-checklist.md](references/audit-check
 
 9. **Dimension 8 requires active scanning.** Search for reinvented primitives using the grep patterns in audit-checklist.md. If no scan was performed, mark as unevaluated — not passing.
 
-10. **Flag orphaned files in findings.** Designers vibecode many variants; Figma Make exports generate files for every screen in the Figma file. Before listing a file as a god-component or flagging it for any issue, check whether it's actually imported by another file. If it's orphaned (zero imports from other files), note it as "orphaned variant — not imported, skip for refactoring" in the finding. This prevents the fix-it-all from wasting credits editing dead code. A quick `grep -r "import.*ComponentName" src/` per flagged file is enough.
+10. **Build a reachability map ONCE, then flag every orphan systematically.** Designers vibecode many screen variants; Figma Make exports generate a file for every screen in the Figma file. Orphaned variants are normal — but they must be identified reliably, not spotted opportunistically.
+
+    Do this as a single deterministic pass, not a per-file guess:
+    - Start from the entry point (`main.tsx` → `App.tsx`), and trace the full import graph: every file imported by a reachable file is itself reachable. Build the complete set of reachable files.
+    - Any `.tsx`/`.ts` component file NOT in that reachable set is orphaned.
+    - Practical method: `grep -rl "import" src` to list all files, then for each component file, check whether any OTHER file imports it (`grep -rn "import.*ComponentName\|from.*ComponentName" src/`). Zero importers (excluding its own sub-component files) = orphaned. A file imported only in `App.tsx` but never rendered in JSX is also effectively dead — check render usage, not just the import line.
+    - **List every orphan explicitly in a dedicated "Orphaned files (skip for refactoring)" section of the report.** Do not scatter orphan notes across individual dimensions and do not rely on noticing them while checking something else. The fix-it-all reads this section to know what to skip, so it must be complete.
+
+    This matters because the fix-it-all will otherwise waste credits splitting and editing dead variants. In prior runs, god-components that were never imported got fully decomposed — pure waste. A complete reachability pass at audit time prevents it. Don't mark a file orphaned without confirming zero importers; don't leave a zero-importer file unmarked.
 
 11. **Dimension 18 coverage.** Run null-access and fixed-width greps across ALL components. Deep-read the highest-risk flagged candidates, capped at 8. Report how many were flagged vs deep-read — never report "passed" on a small sample.
 
@@ -683,7 +691,11 @@ Output format must follow [references/audit-checklist.md](references/audit-check
     | 2   | Clean Data Extraction  | PASS   | —        |
     | ... | ...                    | ...    | ...      |
 
-    Status is PASS / PARTIAL / FAIL / N/A (use N/A for conditional dimensions that don't apply, e.g. RBAC on an app with no roles). Then, **below the table, the detailed findings** — only for dimensions that aren't a clean PASS, each with evidence (file:line), the fact/judgment label, severity justification, and the plain-language consequence. This structure is required in both audit mode and the report a fix-it-all run produces at the end.
+    Status is PASS / PARTIAL / FAIL / N/A (use N/A for conditional dimensions that don't apply, e.g. RBAC on an app with no roles). Then, **below the table, the detailed findings** — only for dimensions that aren't a clean PASS, each with evidence (file:line), the fact/judgment label, severity justification, and the plain-language consequence.
+
+    After the findings, include a dedicated **"Orphaned files (skip for refactoring)"** section listing every file the reachability pass (rule 10) found unimported, with a one-line note that these are unused variants the fix-it-all will skip. This section must be complete — it's what the fix-it-all consults to avoid wasting credits on dead code. If none, say "None — all component files are reachable."
+
+    This structure is required in both audit mode and the report a fix-it-all run produces at the end.
 
 16. **Trust grep output — don't over-read files.** The grep evidence pack proves most findings on its own. Only deep-read a source file when the finding genuinely requires seeing code structure (dimension 18 null-handling, confirming a god-component's internal organization). Reading files to "double-check" a finding grep already proved wastes tokens. Cap verification reads to what's strictly necessary.
 
@@ -706,6 +718,7 @@ Output format must follow [references/audit-checklist.md](references/audit-check
     - Every finding pairs a technical term with a plain consequence
     - Security and design-system findings are in full clear prose, not compressed
     - The summary table covers all 20 dimensions; detailed findings appear below it
+    - The reachability pass ran and the "Orphaned files" section is present and complete (every flagged god-component was checked for importers — a large file with zero importers must be listed as orphaned, not as a god-component to split)
     - The designer summary contains no untranslated jargon
 
 20. **End with a two-path choice.** After the designer summary, offer exactly two ways forward — no menu of individual tasks:
@@ -759,13 +772,15 @@ This is explicit authorization to fix everything — even if it takes two rounds
 
 1. **Write a progress ledger first.** Before any edits, create `vibe-to-prod-progress.md` at the project root. Top of file, verbatim: "CONTINUOUS FIX-IT-ALL PASS. Do not present a menu. Do not stop on safe work. Resume the next unchecked item automatically." Then list every finding as a checkbox in priority order, tagged [A] or [B]. This is the anti-compaction anchor — on a large codebase the conversation WILL compact, and after compaction you re-read this file to recover both the plan and the no-menu rule. Tick a box ONLY after that item's build/runtime check passes (not when you believe it's done).
 
-2. **Run an import-reachability scan before any edits.** Designers vibecode many screens, variants, and explorations — only some end up wired into the app. A Figma Make export of 175 files can easily have 10-20 orphaned variants that nobody uses. Before touching any file, trace from the entry point (`main.tsx` → `App.tsx` → rendered components → their imports) and identify which files are actually in the render tree.
+2. **Build a reachability map before any edits — one systematic pass, not per-file guessing.** Designers vibecode many screens and variants; a Figma Make export of 175 files can have 10-20 orphaned variants nobody uses. You MUST identify all of them up front, reliably.
 
-   Quick method: for each file the audit flagged (god-components, type issues, icon cleanup, etc.), grep for imports of that file across `src/`. If zero other files import it, it's an orphaned variant — mark it `SKIP — not imported` in the ledger.
+   - If the audit already produced an "Orphaned files" section, start from that list.
+   - Either way, do the deterministic pass: trace the import graph from `main.tsx` → `App.tsx` outward. Every file reachable through imports from a rendered component is "in use." Every other `.tsx`/`.ts` component file is orphaned. Practical check per component: `grep -rn "ComponentName" src/` — if nothing outside its own files imports it (or it's imported but never rendered in JSX), it's orphaned.
+   - Mark every orphan as `SKIP — orphaned` in the ledger.
 
-   **Do not edit, refactor, split, fix types in, replace icons in, or do ANY work on orphaned files.** Not in round one, not in round two. Every minute spent on an unused file is wasted credits. This applies to ALL work, not just expensive splits — a 10-credit icon fix on a dead file is still waste.
+   **Do not edit, refactor, split, fix types in, replace icons in, or do ANY work on an orphaned file** — not in round one, not in round two, regardless of how many findings it has or how large it is. A 2,000-line orphaned god-component is skipped entirely; an orphaned file with an `any` type is skipped entirely. Every edit to a dead file is wasted credits.
 
-   In a real test, this check would have saved ~300 credits (~20% of the run) by skipping two god-component splits and two smaller fixes on files that were never imported.
+   This is not optional and not opportunistic. Build the full orphan list once, before the first edit, and consult it before touching any file. In prior runs, missing this wasted ~20% of the run splitting and editing files that were never imported.
 
 3. **Announce the plan once, then proceed:**
 
